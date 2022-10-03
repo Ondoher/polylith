@@ -1,0 +1,15 @@
+{
+  "name": "@polylith/core",
+  "access": "public",
+  "version": "0.0.10",
+  "description": "Core of the client-side polylith framework",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Glenn Anderson",
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^8.3.2"
+  }
+}

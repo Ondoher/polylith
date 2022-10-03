@@ -1,0 +1,6 @@
+{
+    "loadables": [{
+        "name": "test2",
+        "main": "features/test2/dynamic/index.js"
+    }]
+}
