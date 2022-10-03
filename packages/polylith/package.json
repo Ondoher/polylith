@@ -1,0 +1,46 @@
+{
+  "name": "polylith",
+  "version": "0.0.1",
+  "description": "Feaure driven frontend",
+  "main": "polylith.js",
+  "bin": {
+    "sapphire": "bin/sapphire.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.11.0",
+    "compression": "^1.2.1",
+    "cookies": "^0.8.0",
+    "cors": "^2.7.1",
+    "express": "^4.14.0",
+    "highlight.js": "^8.8.0",
+    "memcached": "^0.2.8",
+    "node-static": "^0.7.2",
+    "node-uuid": "^1.4.1",
+    "q": "^1.0.0",
+    "redis": "^0.10.0",
+    "remarkable": "^1.6.0",
+    "socket.io": "^1.7.2",
+    "uglify-es": "^3.3.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ondoher/sapphire.git"
+  },
+  "keywords": [
+    "framework",
+    "sapphire",
+    "spa",
+    "express"
+  ],
+  "author": "Glenn Anderson",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Ondoher/sapphire/issues"
+  },
+  "homepage": "https://github.com/Ondoher/sapphire"
+}

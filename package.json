@@ -1,0 +1,24 @@
+{
+  "name": "polylith",
+  "version": "1.0.0",
+  "description": "Development App",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^21.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.5",
+    "escape-string-regexp": "^5.0.0",
+    "fs-extra": "^10.0.0",
+    "node-static": "^0.7.11",
+    "rollup": "^2.58.0",
+    "uuid": "^8.3.2"
+  },
+  "dependencies": {
+    "rollup-plugin-jsx": "^1.0.3"
+  }
+}
