@@ -1,6 +1,6 @@
 {
   "name": "@polylith/builder",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "The polylith builder",
   "main": "index.js",
   "type": "module",
