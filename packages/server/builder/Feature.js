@@ -1,8 +1,9 @@
 export default class Feature {
-  constructor () {
-  }
+	constructor (root) {
+		this.root = root;
+	}
 
-  async build(app) {
-    this.app = app;
-  }
+	async build(app) {
+		this.app = app;
+	}
 }

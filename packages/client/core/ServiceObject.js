@@ -1,59 +1,59 @@
 import { EventBus } from './EventBus.js';
 
 export class ServiceOject extends EventBus {
-    constructor(name) {
-        super('service:');
-        
-        this.name = name;
-        this.bound = true;
-        this.methods = [];
-    }
+	constructor(name) {
+		super('service:');
 
-    assignMethod(name, method) {
-    // if there is already a listener, unbind and force invoking
-        var bind = this.bound || !this.listeners[name];
+		this.name = name;
+		this.bound = true;
+		this.methods = [];
+	}
 
-        if (bind) {
-            this[name] = method;
-        } else {
-        // this may be a reassignment, but that's okay.
-            this[name] = this.invoke.bind(this, name)
-        }
+	assignMethod(name, method) {
+	// if there is already a listener, unbind and force invoking
+		var bind = this.bound || !this.listeners[name];
 
-        this.methods.push(name);
-    }
+		if (bind) {
+			this[name] = method;
+		} else {
+		// this may be a reassignment, but that's okay.
+			this[name] = this.invoke.bind(this, name)
+		}
 
-    unbindMethod(name) {
-        if (this[name]) {
-            this[name] = this.invoke.bind(this, name)
-        }
-    }
+		this.methods.push(name);
+	}
 
-    unbind() {
-        this.bound = false;
-        this.methods.forEach(function(name) {
-            this.unbindMethod(name);
-        }, this)
-    }
+	unbindMethod(name) {
+		if (this[name]) {
+			this[name] = this.invoke.bind(this, name)
+		}
+	}
 
-    implement(methods) {
-        var names = Object.keys(methods);
+	unbind() {
+		this.bound = false;
+		this.methods.forEach(function(name) {
+			this.unbindMethod(name);
+		}, this)
+	}
 
-        names.forEach(function(name) {
-            if (methods[name]) {
-                this.assignMethod(name, methods[name])
+	implement(methods) {
+		var names = Object.keys(methods);
 
-            // always add this as a listener, in case the method becomes unbound
-                this.listen(name, methods[name]);
-            }
-        }, this);
-    }
+		names.forEach(function(name) {
+			if (methods[name]) {
+				this.assignMethod(name, methods[name])
 
-    invoke(name, ...args) {
-        return this.fire(name, ...args);
-    }
+			// always add this as a listener, in case the method becomes unbound
+				this.listen(name, methods[name]);
+			}
+		}, this);
+	}
 
-    async asyncInvoke(name, ...args) {
-        return await this.asyncFire(name, ...args);
-    }
+	invoke(name, ...args) {
+		return this.fire(name, ...args);
+	}
+
+	async asyncInvoke(name, ...args) {
+		return await this.asyncFire(name, ...args);
+	}
 }

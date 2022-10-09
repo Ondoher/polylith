@@ -1,9 +1,9 @@
 function makeSource(features) {
 
-    var importStatements = '';
+	var importStatements = '';
 	features.forEach(function(feature) {
-        importStatements += `import '${feature}'\n`;
-    })
+		importStatements += `import '${feature}'\n`;
+	})
 
 	var source = `${importStatements}`
 

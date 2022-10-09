@@ -13,6 +13,7 @@ import features from './plugin-features.js';
 import styles from "rollup-plugin-styles";
 
 import ConfigFeature from './ConfigFeature.js';
+import Files from './Files.js';
 
 /**
  * call this function to check if the given file exists
@@ -39,11 +40,11 @@ export default class App {
 	 *
 	 * @param {String} name a name for the app
 	 * @param {String} root the root directory of the project. All other
-	 *  paths will be relative to this path.
+	 *  	paths will be relative to this path.
 	 * @param {String} index the path to the main source file for the app. all
-	 * 	source paths will be assumed to be relative to this path.
+	 * 		source paths will be assumed to be relative to this path.
 	 * @param {String} dest the path to the destination folder for the
-	 * 	rolled up files
+	 * 		rolled up files
 	 */
 
 	constructor(name, root, index , dest) {
@@ -52,7 +53,7 @@ export default class App {
 
 		var filename = path.posix.join(root, index);
 		this.sourcePath = path.posix.dirname(filename);
-		this.destination = path.posix.join(root, dest);
+		this.destPath = path.posix.join(root, dest);
 
 		this.name = name;
 		this.index = index;
@@ -64,6 +65,7 @@ export default class App {
 		this.configs = {};
 		this.manualChunkType = 'function';
 		this.manualChunks = [];
+		this.files = new Files(sourcePath, destination)
 	}
 
 	static fileToPath(filename) {
@@ -111,10 +113,37 @@ export default class App {
 	}
 
 	/**
-	 * Call this method to add a feature to the application.
+	 * Call this method to add a list of resources that will be moved to the
+	 * destination path when the application is built. This will either be a
+	 * feature root, or the source path
+	 *
+	 * @param {Array<import('./Files.js').CopySpec} resourceSpecs the copy specs
+	 * 		for all the resources being added.
+	 * @param {String} root the path to the origin of the caller. Paths in
+	 * 		the spec are assumed to be relative to this.
+	 */
+	addResources(resourceSpecs, root) {
+		resourceSpecs.forEach(function(spec) {
+			this.files.addCopySpec(root, spec);
+		}, this)
+	}
+
+	/**
+	 * Call this method to add a feature to the application. This method is
+	 * given a path to the root of the feature. At build time the builder will
+	 * look directory for a file named build.js and if found import it and
+	 * call the default function passing it a pointner to this object.
+	 *
+	 * If there is no build.js file the builder will look for a build.json file.
+	 * If present that json will be loaded and used to build the feature.
+	 *
+	 * If that is not found it will look for an index.js file. and if found it
+	 * will add that to the list on feature index files which will be
+	 * automatically imported when the built code imports the @polylith/features
+	 * module
 	 *
 	 * @param {String} feature the relative path from the application source
-	 * 	directory to the feature root.
+	 * 		directory to the feature root.
 	 */
 	addFeature(feature) {
 		this.features.push(feature);
@@ -126,7 +155,7 @@ export default class App {
 	 * "@polylith/features"
 	 *
 	 * @param {String} index the relative path to the feature index file from
-	 * the application source folder.
+	 * 		the application source folder.
 	 */
 	addFeatureIndex(index) {
 		this.featureIndexes.push(index);
@@ -171,7 +200,7 @@ export default class App {
 	 * default.
 	 *
 	 * @param {String} id this is the filename of the current file being
-	 * 	processed by rollup
+	 * 		processed by rollup
 	 *
 	 * @returns {String} the chunk name if there is a match
 	 */
@@ -186,9 +215,9 @@ export default class App {
 	 * array.
 	 *
 	 * @param {String} id this is the filename of the current file being
-	 * 	processed by rollup
+	 * 		processed by rollup
 	 * @returns {String} the name fo the chunk if there is a matching chunk
-	 * 	name specifier
+	 * 		name specifier
 	 */
 	handleManualChunksArray(id) {
 		var fixId = App.fixPath(id);
@@ -205,7 +234,7 @@ export default class App {
 	 * added.
 	 *
 	 * @param {String} id this is the filename of the current file being
-	 * 	processed by rollup
+	 * 		processed by rollup
 	 * @returns the chunk name if any of the callbacks return one
 	 */
 	handleManualChunksCallbacks(id) {
@@ -238,7 +267,7 @@ export default class App {
 	 * pieces of code that are not a direct dependency of the main application.
 	 *
 	 * @param {String} root path relative to the source directory for the
-	 * feature to load.
+	 * 		feature to load.
 	 */
 	async loadFeature(root) {
 		var featurePath = path.posix.join(this.sourcePath, root);
@@ -266,7 +295,7 @@ export default class App {
 			try {
 				let content = JSON.parse(await readFile(jsonPath));
 
-				let builder = new ConfigFeature(content, featurePath);
+				let builder = new ConfigFeature(content, root);
 				await builder.build(this)
 			} catch (e) {
 				console.error(e);
@@ -288,12 +317,13 @@ export default class App {
 	/**
 	 *
 	 * @param {String} name unique name of the loadable that will be passed to
-	 * 	the load method
+	 * 		the load method
 	 * @param {String} main the relative path from the source folder to the entry
-	 * 	point of the loadable.
+	 * 		point of the loadable.
 	 * @param {String} [prefix] if given, the prefix on services created in
-	 * 	this loadable. When the loadable has been loaded, the start and ready
-	 *  methods will be called on all services starting with this prefix.
+	 * 		this loadable. When the loadable has been loaded, the start and
+	 * 		ready methods will be called on all services starting with this
+	 * 		prefix.
 	 */
 	addLoadable(name, main, prefix) {
 		var dest = path.posix.join(this.sourcePath, main);
@@ -301,7 +331,8 @@ export default class App {
 	}
 
 	/**
-	 * build calls this method to create the rollup configuration object
+	 * The build method calls this method to create the rollup configuration
+	 * object
 	 *
 	 * @returns {Object} rollup configuration object
 	 */
@@ -348,7 +379,7 @@ export default class App {
 			output : {
 				output : {
 					sourcemap: true,
-					dir : this.destination,
+					dir : this.destPath,
 					format: 'es',
 					assetFileNames: function(chunkInfo) {
 						return '[name]-[hash][extname]';

@@ -2,11 +2,11 @@ import { ServiceOject } from "./ServiceObject";
 import { makeEventable} from "./Eventable";
 
 class Registry {
-    constructor () {
-        this.services = {};
+	constructor () {
+		this.services = {};
 
 		makeEventable(this);
-    }
+	}
 
 	createServiceObject(name) {
 		var result = new ServiceOject(name);
@@ -14,28 +14,28 @@ class Registry {
 		return result;
 	}
 
-    register(name, serviceObject) {
-        this.services[name] = serviceObject;
-    }
+	register(name, serviceObject) {
+		this.services[name] = serviceObject;
+	}
 
-    unregister(name) {
-        delete this.services[name];
-    }
+	unregister(name) {
+		delete this.services[name];
+	}
 
-    subscribe(name) {
-        return this.services[name];
-    }
+	subscribe(name) {
+		return this.services[name];
+	}
 
 	makeService(serviceName, obj, methodList) {
 		obj.serviceObject = new ServiceOject(serviceName);
 
-        obj.serviceObject.implementOn(obj, 'fire');
-        obj.serviceObject.implementOn(obj, 'listen');
-        obj.serviceObject.implementOn(obj, 'unlisten');
+		obj.serviceObject.implementOn(obj, 'fire');
+		obj.serviceObject.implementOn(obj, 'listen');
+		obj.serviceObject.implementOn(obj, 'unlisten');
 
-        if (serviceName) {
-            registry.register(serviceName, obj.serviceObject);
-        }
+		if (serviceName) {
+			registry.register(serviceName, obj.serviceObject);
+		}
 
 		if (methodList) {
 			var methods = {};
@@ -57,9 +57,9 @@ class Registry {
 
 		obj.serviceObject = serviceObject || new ServiceOject(serviceName);
 
-        obj.serviceObject.implementOn(obj, 'fire');
-        obj.serviceObject.implementOn(obj, 'listen');
-        obj.serviceObject.implementOn(obj, 'unlisten');
+		obj.serviceObject.implementOn(obj, 'fire');
+		obj.serviceObject.implementOn(obj, 'listen');
+		obj.serviceObject.implementOn(obj, 'unlisten');
 
 		if (methodList) {
 			var methods = {};
@@ -92,10 +92,10 @@ class Registry {
 		return promises;
 	}
 
-    async start(prefix = '') {
-        var names = Object.keys(this.services);
+	async start(prefix = '') {
+		var names = Object.keys(this.services);
 
-        var services = names.filter(function(name) {
+		var services = names.filter(function(name) {
 			return name.indexOf(prefix) === 0;
 		}, this);
 
@@ -104,7 +104,7 @@ class Registry {
 			.then(function () {
 				this.callAll(services, 'ready');
 			}.bind(this));
-    }
+	}
 }
 
 export var registry = new Registry();

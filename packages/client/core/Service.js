@@ -2,29 +2,29 @@ import { ServiceOject } from "./ServiceObject";
 import { registry } from "./Registry";
 
 export class Service {
-    constructor (name) {
-        this.serviceObject = new ServiceOject(name);
-        
-        this.serviceObject.implementOn(this, 'fire');
-        this.serviceObject.implementOn(this, 'listen');
-        this.serviceObject.implementOn(this, 'unlisten');
+	constructor (name) {
+		this.serviceObject = new ServiceOject(name);
 
-        if (name) {
-            registry.register(name, this.serviceObject);
-        }
-    }
+		this.serviceObject.implementOn(this, 'fire');
+		this.serviceObject.implementOn(this, 'listen');
+		this.serviceObject.implementOn(this, 'unlisten');
 
-    implement (names) {
-        var methods = {};
+		if (name) {
+			registry.register(name, this.serviceObject);
+		}
+	}
 
-        names.forEach(function(name) {
-            if (this[name]) {
-                methods[name] = this[name].bind(this);
-            } else {
-                console.warn('method', name, 'not implemented on service', this.name ? this.name : '<unnamed service>')
-            }
-        }, this);
+	implement (names) {
+		var methods = {};
 
-        this.serviceObject.implement(methods);
-    }
+		names.forEach(function(name) {
+			if (this[name]) {
+				methods[name] = this[name].bind(this);
+			} else {
+				console.warn('method', name, 'not implemented on service', this.name ? this.name : '<unnamed service>')
+			}
+		}, this);
+
+		this.serviceObject.implement(methods);
+	}
 }
