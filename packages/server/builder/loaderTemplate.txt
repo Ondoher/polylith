@@ -1,0 +1,15 @@
+import {App, registry} from '@polylith/core';
+
+var loaded = {}
+
+export async function load(name) {
+	if (loaded[name]) return loaded[name]
+	var promise;
+
+	switch (name) {
+{{SWITCHES}}
+	}
+
+	loaded[name] = promise;
+	return promise;
+}

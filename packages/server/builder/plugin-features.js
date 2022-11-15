@@ -2,11 +2,13 @@ function makeSource(features) {
 
 	var importStatements = '';
 	features.forEach(function(feature) {
-		importStatements += `import '${feature}'\n`;
+		importStatements += `import ${JSON.stringify(feature)}\n`;
 	})
 
 	var source = `${importStatements}`
 
+	console.log('@polylith/features');
+	console.log(source);
 	return source;
 }
 

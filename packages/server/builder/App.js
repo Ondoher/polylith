@@ -11,6 +11,8 @@ import loader from './plugin-loader.js';
 import mainHTML from './plugin-main-html.js';
 import features from './plugin-features.js';
 import styles from "rollup-plugin-styles";
+import resources from "./plugin-copy-resources.js";
+import jsconfig from "./plugin-jsconfig.js";
 
 import ConfigFeature from './ConfigFeature.js';
 import Files from './Files.js';
@@ -41,13 +43,13 @@ export default class App {
 	 * @param {String} name a name for the app
 	 * @param {String} root the root directory of the project. All other
 	 *  	paths will be relative to this path.
-	 * @param {String} index the path to the main source file for the app. all
-	 * 		source paths will be assumed to be relative to this path.
-	 * @param {String} dest the path to the destination folder for the
-	 * 		rolled up files
+	 * @param {String} index the relative path to the main source file from the
+	 * 		root. All source paths will be assumed to be relative to this path.
+	 * @param {String} dest the relative path to the destination folder from the
+	 * 		root for rolled up files
 	 */
 
-	constructor(name, root, index , dest) {
+	constructor(name, root, index, dest) {
 		root = App.fixPath(root);
 		this.root = root;
 
@@ -65,7 +67,8 @@ export default class App {
 		this.configs = {};
 		this.manualChunkType = 'function';
 		this.manualChunks = [];
-		this.files = new Files(sourcePath, destination)
+		this.files = new Files(this.sourcePath, this.destPath);
+		this.cssFiles = [];
 	}
 
 	static fileToPath(filename) {
@@ -112,6 +115,25 @@ export default class App {
 		this.configs[root] = config;
 	}
 
+	async addMainCss(specs) {
+		var files = new Files(this.sourcePath, this.destPath)
+
+	// get the file paths
+		specs.forEach(function(spec) {
+			files.addCopySpec('', spec);
+		}, this)
+
+		var expanded = await files.findAllFiles();
+		var keys = Object.keys(expanded);
+		keys.forEach(function(key){
+			var file = expanded[key];
+			this.cssFiles.push(file.uri)
+		}, this);
+
+	// now add them to be copied
+		this.addResources('', specs);
+	}
+
 	/**
 	 * Call this method to add a list of resources that will be moved to the
 	 * destination path when the application is built. This will either be a
@@ -122,7 +144,7 @@ export default class App {
 	 * @param {String} root the path to the origin of the caller. Paths in
 	 * 		the spec are assumed to be relative to this.
 	 */
-	addResources(resourceSpecs, root) {
+	addResources(root, resourceSpecs) {
 		resourceSpecs.forEach(function(spec) {
 			this.files.addCopySpec(root, spec);
 		}, this)
@@ -138,7 +160,7 @@ export default class App {
 	 * If present that json will be loaded and used to build the feature.
 	 *
 	 * If that is not found it will look for an index.js file. and if found it
-	 * will add that to the list on feature index files which will be
+	 * will add that to the list of feature index files which will be
 	 * automatically imported when the built code imports the @polylith/features
 	 * module
 	 *
@@ -158,7 +180,7 @@ export default class App {
 	 * 		the application source folder.
 	 */
 	addFeatureIndex(index) {
-		this.featureIndexes.push(index);
+		this.featureIndexes.push(path.join(this.sourcePath, index));
 	}
 
 	/**
@@ -324,10 +346,37 @@ export default class App {
 	 * 		this loadable. When the loadable has been loaded, the start and
 	 * 		ready methods will be called on all services starting with this
 	 * 		prefix.
+	 * @param {Array<CopySpec>} [css] if supplied it will be a copy spec of the
+	 * 		css files that will included when the module is loaded
 	 */
-	addLoadable(name, main, prefix) {
+	async addLoadable(root, name, main, prefix, css) {
+		// expand css specs
+		var cssUris = css ? [] : undefined;
+		if (css) {
+			var files = new Files(this.sourcePath, this.destPath)
+			css.forEach(function(spec) {
+				files.addCopySpec(root, spec);
+			}, this)
+			var expanded = await files.findAllFiles();
+			var keys = Object.keys(expanded);
+			keys.forEach(function(key){
+				var file = expanded[key];
+				cssUris.push(file.uri)
+			}, this)
+		}
+
 		var dest = path.posix.join(this.sourcePath, main);
-		this.loadables.push({name, path: dest, prefix});
+		this.loadables.push({name, path: dest, prefix, css: cssUris});
+	}
+
+
+	buildMainCss() {
+		var cssTags = '';
+		this.cssFiles.forEach(function(uri) {
+			cssTags += `		<link rel="stylesheet" href="${uri}"></link>`
+		}, this);
+
+		return cssTags;
 	}
 
 	/**
@@ -339,8 +388,8 @@ export default class App {
 
 	buildConfiguration() {
 		var input = [this.fullIndexPath];
-		this.loadables.forEach(function(path) {
-			input.push(path.path);
+		this.loadables.forEach(function(spec) {
+			input.push(spec.path);
 		});
 
 		this.variables = {
@@ -349,6 +398,7 @@ export default class App {
 		}
 
 		var manualChunks = this.getManualChunks();
+		var mainCss = this.buildMainCss();
 
 		var config = {
 			input : {
@@ -364,6 +414,7 @@ export default class App {
 					}),
 					loader(this.loadables),
 					features(this.featureIndexes),
+					jsconfig(this.root),
 					html({
 						include: path.join(this.sourcePath, "**/*.html"),
 					}),
@@ -372,8 +423,9 @@ export default class App {
 						root: this.root,
 						source: this.htmlTemplate.source,
 						destination: this.htmlTemplate.destination,
-						replaceVars: {},
-					})
+						replaceVars: {mainCss: mainCss},
+					}),
+					resources(this.name, this.files)
 				],
 			},
 			output : {
@@ -425,7 +477,7 @@ export default class App {
 	watch() {
 		var watchConfig  = {
 			...this.config.input,
-			...this.config.output,
+			output: [this.config.output.output],
 			...this.config.watch,
 		}
 

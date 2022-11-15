@@ -1,6 +1,8 @@
 import fg from 'fast-glob';
 import path from 'node:path/posix'
 import {ensureDir} from 'fs-extra';
+import { copyFile } from 'node:fs/promises';
+import App from './App.js';
 
 /**
  * @typedef {Object} CopySpec
@@ -32,10 +34,10 @@ export default class Files {
 	 *
 	 * @param {String} dest the absolute filepath to the application's
 	 *  destination directory
-	 * @param {String} src  the abolute path to the applications source
+	 * @param {String} src the abolute path to the applications source
 	 *  directory
 	 */
-	constructor(dest, src) {
+	constructor(src, dest) {
 		this.dest = dest;
 		this.src = src;
 		this.files = {};
@@ -58,6 +60,28 @@ export default class Files {
 	}
 
 	/**
+	 * call this methid to generate the destination filename from the spec and
+	 * the source filename
+	 *
+	 * @param {CopySpec} spec the spec that generate the filename
+	 * @param {String} srcFilename the source filename
+	 * @returns
+	 */
+	makeDestination(searchRoot, spec, srcFilename) {
+		var fullPath = searchRoot;
+		var relativePath = srcFilename.slice(fullPath.length + 1);
+		var destFilename = '';
+
+		if (spec.keepNest) {
+			destFilename = path.join(this.dest, spec.dest, relativePath);
+		} else {
+			destFilename = path.join(this.dest, spec.dest, path.basename(srcFilename));
+		}
+
+		return destFilename;
+	}
+
+	/**
 	 * Call this method once per spec to add a list of files to the complete
 	 * list of all the files to be copied. If multiple files are found through
 	 * different specs then the spec with the longest search root will take
@@ -73,18 +97,41 @@ export default class Files {
 		// Since file paths here are absolute tthis will always be based on the
 		// string length.
 		files.forEach(function(file) {
+			file = App.fixPath(file);
 			// reconcile conflicts
 			if (this.files[file]) {
-				copyInfo = this.files[file];
+				var copyInfo = this.files[file];
 				if (copyInfo.searchRoot.length > searchRoot.length) return;
 			}
+			var destination = this.makeDestination(searchRoot, spec, file);
+			var uri = destination.slice(this.dest.length + 1);
 
 			this.files[file] = {
 				name: file,
+				destFilename: destination,
+				uri: uri,
 				searchRoot: searchRoot,
 				spec: spec,
 			}
 		}, this)
+	}
+
+	async findFiles(spec) {
+		var searchRoot = path.join(this.src, spec.root, spec.cwd);
+		var options = {
+			cwd: searchRoot,
+			ignore: ['**/node_modules'],
+			absolute: true,
+			onlyFiles: true,
+			unique: true,
+			dot: true,
+		}
+		var fullGlob = path.join(searchRoot, spec.glob);
+		var files = await fg(fullGlob, options);
+
+		this.addFiles(searchRoot, files, spec);
+
+		return this.files;
 	}
 
 	/**
@@ -98,22 +145,10 @@ export default class Files {
 		// using a for loop here because we are making async calls
 		for (let idx = 0; idx < this.specs.length; idx++) {
 			let spec = this.specs[idx];
-			let searchRoot = path.join(this.src, spec.root, spec.cwd);
-			let options = {
-				cwd: searchRoot,
-				ignore: ['**/node_modules'],
-				absolute: true,
-				onlyFiles: true,
-				unique: true,
-				dot: true,
-			}
-			let fullGlob = path.join(searchPath, spec.glob);
-			let files = await fg(fullGlob, options);
-
-			this.addFiles(searchRoot, files, spec);
+			await this.findFiles(spec);
 		}
 
-		return this.files
+		return this.files;
 	}
 
 	/**
@@ -124,28 +159,17 @@ export default class Files {
 		await this.findAllFiles();
 
 		var filenames = Object.keys(this.files);
-
 		// using a for loop because we are making async calls
 		for (let idx = 0 ; idx < filenames.length; idx++) {
 			let srcFilename = filenames[idx];
-			let spec = this.files[srcFilename].spec;
-			let relativePath = this.srcFilename.slice(this.files[srcFilename].searchRoot.length);
-			let destFilename = '';
-
-			if (spec.keepNest) {
-				destFilename = path.join(this.dest, spec.dest, relativePath);
-			} else {
-				destFilename = path.join(this.dest, spec.dest, path.basename(srcFilename));
-			}
-
+			let destFilename = this.files[srcFilename].destFilename;
+			var destFilePath = path.dirname(destFilename);
 			// we will override existing destination files. This could have
 			// unintended consequences
 			try {
-				console.log(`copying ${srcFilename} to ${destFilename}`);
-				/*
-					await ensureDir(path.dirname(destinationFilePath));
-					await fs.copyFiles(srcFilename, destFilename);
-				*/
+//				console.log(`copying ${srcFilename} to ${destFilename}`);
+				await ensureDir(destFilePath);
+				await copyFile(srcFilename, destFilename);
 			} catch (e) {
 				console.error(`Error copying file ${srcFilename} to ${destFilename}`);
 				throw e;
