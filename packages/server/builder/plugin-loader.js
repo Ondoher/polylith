@@ -1,42 +1,58 @@
-function makeSource(loadables) {
+import path from 'node:path/posix';
+import {readFile, writeFile, stat} from 'node:fs/promises';
+import {fixPath} from './utils.js';
+var templateSource;
 
+function makeSource(loadables) {
 	var loadableSwitches = '';
+
+	function makeCss(loadable) {
+		if (!loadable.css) return '';
+		var jsonCss = JSON.stringify(loadable.css);
+		return (
+`						App.loadCss(${jsonCss});`
+		)
+
+	}
+
+	function makeServices(loadable) {
+		if (!loadable.prefix) return '';
+		return (
+`						await registry.start('${loadable.prefix}');`
+		)
+	}
 
 	loadables.forEach(function(loadable) {
 		var prefixStr = ';';
+		var cssStr = makeCss(loadable);
+		var serviceStr = makeServices(loadable);
 
-		if (loadable.prefix) {
+		if (loadable.prefix || loadable.css) {
 			prefixStr = `
 					.then(async function(result) {
-						await registry.start('${loadable.prefix}');
-						return result;
+${cssStr}
+${serviceStr}
 					});
 `
 		}
 
-		var switchStr = `
-			case '${loadable.name}':
+		var switchStr =
+`			case '${loadable.name}':
 				promise = import('${loadable.path}')${prefixStr}
 				break;
 `
 		loadableSwitches += switchStr;
 	})
 
-	var source =
-`
-	import {registry} from '@polylith/core';
+	var source = templateSource;
+	var source = source.replace('{{SWITCHES}}', loadableSwitches);
+	var source = source.replace(/\t/g, '    ');
 
-	export async function load(name) {
-		var promise;
+	console.log(source);
 
-		switch (name) {
-${loadableSwitches}
-		}
-		return promise;
-	}
-`
 	return source;
 }
+
 
 export default function loader(loadables) {
 	return {
@@ -49,7 +65,13 @@ export default function loader(loadables) {
 			return null;
 		},
 
-		load (id) {
+		async load (id) {
+			var root = path.dirname(fixPath(import.meta.url));
+			if (!templateSource) {
+				templateSource = await readFile(path.join(root, 'loaderTemplate.txt'), 'utf-8');
+				console.log(templateSource);
+			}
+
 			if (id === '@polylith/loader') {
 				return makeSource(loadables);
 			}

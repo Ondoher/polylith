@@ -1,9 +1,9 @@
-import App from './App';
+import App from './App.js';
 import path from 'node:path/posix';
 
 export default class ConfigApp extends App {
 	constructor (config, root) {
-		App.fixPath(root);
+		root = App.fixPath(root);
 		var name = config.name || 'unnamed';
 		var index = config.index || path.join(root, 'src', 'index.js');
 		var dest = config.dest || path.join(root, 'dist');
