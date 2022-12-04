@@ -97,6 +97,9 @@ export default class App {
 	 */
 	getCodeVariablesValue() {
 		var names = Object.keys(this.codeVariables);
+
+		// also include this process stuff, React seems to think it will always
+		// be there. Consider moving this into a plugin/feature of some sort
 		var codeBlock =
 	`<script>
 		window.process = {env: {NODE_ENV: 'dev'}};
@@ -118,7 +121,6 @@ export default class App {
 		codeBlock +=
 `	</script>
 `
-
 
 		return codeBlock;
 	}

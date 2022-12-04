@@ -1,14 +1,19 @@
 import express from "express";
 import http from 'node:http';
 import https from 'node:https';
+import path from 'node:path/posix';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import cookieSession from 'cookie-session';
 import compression from 'compression';
+import {workingDir} from './utils.js';
+
 
 export class PolylithServer {
-	constructor(options) {
+	constructor(options, dest) {
 		this.options = options;
+		this.staticRoot = dest;
+		this.root = workingDir();
 	}
 
 	getRouter(plApp) {
@@ -21,13 +26,16 @@ export class PolylithServer {
 		plApp.watch();
 	}
 
-	serve(plApp) {
-		this.app.use(express.static(plApp.destPath))
+	serve() {
+		var roots = !Array.isArray(this.staticRoot) ? [this.staticRoot] : this.staticRoot;
+
+		roots.forEach(function(root) {
+			this.app.use(express.static(path.join(this.root, root)));
+		}, this)
 	}
 
 	create() {
 		var {
-			apps,
 			https : httpsOptions,
 			cors : corsOptions,
 			compression: useCompression,
@@ -56,9 +64,7 @@ export class PolylithServer {
 			.use(express.text())
 			.use(express.raw())
 
-		apps.forEach(function(app) {
-			this.serve(app);
-		}, this);
+		this.serve();
 
 		if (httpsOptions)
 			this.server = https.createServer(httpsOptions, this.app);

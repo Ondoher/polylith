@@ -1,6 +1,6 @@
 {
   "name": "@polylith/server",
-  "version": "0.0.3",
+  "version": "0.1.5",
   "description": "This is the basic polylith http/https server. It is build on top of Express.js",
   "main": "index.js",
   "scripts": {

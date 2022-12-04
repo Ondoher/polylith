@@ -5,7 +5,7 @@ var projectRoot = path.join(utils.fileToPath(import.meta.url), '../');
 class {App}App extends App {
 	constructor() {
 		super('{app}', projectRoot, '{path}{src}/index.js', '{dest}');
-		this.setHtmlTemplate('{path}{src}/index.html', '{dest}/{path}index.html');
+		this.setHtmlTemplate('{path}/{src}/index.html', '{dest}{path}/index.html');
 		this.addResources('',  [
 			{
 				"dest": "styles",

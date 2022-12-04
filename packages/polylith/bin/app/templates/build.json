@@ -1,11 +1,11 @@
 {
 	"name": "{app}",
-	"dest": "{dest}/{path}",
-	"source": "{src}/{path}",
-	"index": "{src}/{path}index.js",
+	"dest": "{dest}{path}",
+	"source": "{src}{path}",
+	"index": "{src}{path}index.js",
 	"template": {
-		"source": "{src}/{path}templates/index.html",
-		"destination": "{dest}/{path}index.html"
+		"source": "{src}{path}/templates/index.html",
+		"destination": "{dest}{path}/index.html"
 	},
 	"resources": [
 		{

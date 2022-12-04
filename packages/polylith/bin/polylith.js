@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import minimist from 'minimist';
 import { workingDir, forceToPosix, fileExists } from './utils.js';
 import path from 'node:path/posix';
@@ -298,7 +300,7 @@ function getNames(params) {
 	names.builds = OPTIONS.builds;
 	names.src = OPTIONS.src;
 	names.react = OPTIONS.react;
-	names.path = OPTIONS.multiple ? app + '/' : '';
+	names.path = OPTIONS.multiple ? '/' + app : '';
 
 	return names;
 }

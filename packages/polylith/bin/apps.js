@@ -134,10 +134,10 @@ export async function build(name, config, options, watch) {
 }
 
 
-async function server(apps) {
-	var server = new PolylithServer({apps: apps});
+async function server(apps, options) {
+	var server = new PolylithServer({apps: apps}, options.dest);
 	server.create();
-	server.start('8081');
+	server.start(options.port || '8081');
 }
 
 export async function watch(name, config, options) {
@@ -147,5 +147,5 @@ export async function watch(name, config, options) {
 		app.watch();
 	}
 
-	server(apps);
+	server(apps, options);
 }

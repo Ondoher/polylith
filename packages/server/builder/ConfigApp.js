@@ -16,7 +16,7 @@ export default class ConfigApp extends App {
 		this.config = config;
 
 		if (!config.template || !config.template.source) throw new Error('html source not defined in config file');
-		var source = index.template.source;
+		var source = config.template.source;
 		var sourceFilename = path.basename(source);
 		var destination = config.template.destination || path.join(dest, sourceFilename);
 		this.setHtmlTemplate(source, destination);
