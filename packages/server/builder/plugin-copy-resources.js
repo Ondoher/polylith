@@ -8,7 +8,18 @@ var copied= {}
  */
 export default function(name, files) {
 	return {
-		name: "main-html-resources",
+		name: "copy-resources",
+
+		buildStart() {
+			var folders = files.getAllFolders();
+			folders.forEach(function(name) {
+				this.addWatchFile(name);
+			}, this);
+		},
+
+		watchChange(file, event) {
+			files.copyOneFile(file, true);
+		},
 
 		async generateBundle(outputOptions, bundleInfo) {
 			// assets are not watched, never copy more than once

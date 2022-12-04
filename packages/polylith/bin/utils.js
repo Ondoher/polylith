@@ -1,5 +1,6 @@
 import path from 'node:path/posix';
 import {readFile, writeFile, stat} from 'node:fs/promises';
+import {cwd} from 'node:process';
 
 /**
  * call this function to force the file path to use posix notation and remove
@@ -16,6 +17,10 @@ export function forceToPosix(src) {
 	src = src.replace(/\\/g, '/');
 
 	return src;
+}
+
+export function workingDir() {
+	return forceToPosix(process.cwd());
 }
 
 export function fileToPath(filename) {

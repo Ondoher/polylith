@@ -7,11 +7,8 @@ function makeSource(features) {
 
 	var source = `${importStatements}`
 
-	console.log('@polylith/features');
-	console.log(source);
 	return source;
 }
-
 
 export default function features(features) {
 	return {

@@ -1,5 +1,6 @@
 import Feature from './Feature.js';
 import path from 'node:path/posix';
+import App from './App.js';
 
 export default class ConfigFeature extends Feature {
 	/**
