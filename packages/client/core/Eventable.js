@@ -1,4 +1,4 @@
-import { EventBus } from "./EventBus";
+import { EventBus } from "./EventBus.js";
 
 export function makeEventable(obj) {
 	obj.eventBus = new EventBus('eventable:');

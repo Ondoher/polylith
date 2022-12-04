@@ -1,0 +1,20 @@
+{
+  "name": "@polylith/server",
+  "version": "0.1.10",
+  "description": "This is the basic polylith http/https server. It is build on top of Express.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Glenn Anderson",
+  "license": "MIT",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "cookie-session": "^2.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "type": "module"
+}

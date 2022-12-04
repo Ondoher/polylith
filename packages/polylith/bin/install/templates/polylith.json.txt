@@ -1,0 +1,7 @@
+{
+	"builds": "builds",
+	"multiple": false,
+	"dest": "dist",
+	"src": "src",
+	"react": {react}
+}

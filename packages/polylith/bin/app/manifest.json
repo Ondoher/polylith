@@ -1,0 +1,11 @@
+{
+	"files": [
+		{"when": "code", "path": "{builds}/{app}.js", "template": "build.js.txt"},
+		{"when-not": "code", "path": "{builds}/{app}.json", "template":  "build.json"},
+		{"path": "{src}{path}/templates/index.html", "template": "template.html"},
+		{"when-not": "react", "path": "{src}{path}/index.js", "template": "index.js"},
+		{"when": "react", "path": "{src}{path}/index.js", "template": "index-react.js"},
+		{"when": "react", "path": "{src}{path}/main/main.jsx", "template": "main.js"},
+		{"when": "react", "path": "{src}{path}/main/App.jsx", "template": "app.jsx.txt"}
+	]
+}

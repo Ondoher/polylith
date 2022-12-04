@@ -1,7 +1,5 @@
-import { registry } from './Registry';
-import { makeEventable } from './Eventable';
-import { Service } from './Service';
-import App from './App';
+import { registry, Registry } from './Registry.js';
+import { makeEventable } from './Eventable.js';
+import { Service } from './Service.js';
 
-export {registry as registry, Service as Service, makeEventable as makeEventable,
-	App as App};
+export {registry, Registry, Service, makeEventable}

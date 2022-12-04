@@ -1,6 +1,6 @@
 import path from 'node:path/posix';
 import {readFile, writeFile, stat} from 'node:fs/promises';
-import {fixPath} from './utils.js';
+import {forceToPosix} from './utils.js';
 var templateSource;
 
 function makeSource(loadables) {
@@ -10,7 +10,7 @@ function makeSource(loadables) {
 		if (!loadable.css) return '';
 		var jsonCss = JSON.stringify(loadable.css);
 		return (
-`						App.loadCss(${jsonCss});`
+`						loadCss(${jsonCss});`
 		)
 
 	}
@@ -38,7 +38,7 @@ ${serviceStr}
 
 		var switchStr =
 `			case '${loadable.name}':
-				promise = import('${loadable.path}')${prefixStr}
+				promise = import('${loadable.index}')${prefixStr}
 				break;
 `
 		loadableSwitches += switchStr;
@@ -47,8 +47,6 @@ ${serviceStr}
 	var source = templateSource;
 	var source = source.replace('{{SWITCHES}}', loadableSwitches);
 	var source = source.replace(/\t/g, '    ');
-
-	console.log(source);
 
 	return source;
 }
@@ -66,10 +64,9 @@ export default function loader(loadables) {
 		},
 
 		async load (id) {
-			var root = path.dirname(fixPath(import.meta.url));
+			var root = path.dirname(forceToPosix(import.meta.url));
 			if (!templateSource) {
 				templateSource = await readFile(path.join(root, 'loaderTemplate.txt'), 'utf-8');
-				console.log(templateSource);
 			}
 
 			if (id === '@polylith/loader') {

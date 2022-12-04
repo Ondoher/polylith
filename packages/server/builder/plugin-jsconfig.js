@@ -1,25 +1,6 @@
 import path from 'node:path/posix';
 import {readFile, writeFile, stat} from 'node:fs/promises';
-
-async function fileExists(path) {
-    try {
-        await stat(path)
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function fixPath(src) {
-	src = src.replace('file:', '');
-	src = src.replace('///', '');
-	src = src.replace(/.:/, '');
-	src = src.replace(/\\/g, '/');
-
-	return src;
-}
-
-
+import {forceToPosix, fileExists} from './utils.js'
 
 /**
  * Matches pattern with a single star against search.
@@ -58,22 +39,19 @@ function matchStar(pattern, search) {
 
 async function findPathMatch(base, source, paths) {
 	var patterns = Object.keys(paths);
-	var source = fixPath(source);
+	var source = forceToPosix(source);
 
 	if (source.indexOf(base) === 0) return
-//		source = source.slice(base.length);
 
-	console.log('>>>', source)
-	for(let patternIdx = 0; patternIdx < patterns.length; patternIdx++) {
-		let pattern = patterns[patternIdx];
+	for (let pattern of patterns) {
 		let searches = paths[pattern];
 		let capture = matchStar(pattern, source);
-		if (!capture) continue;
 
+		if (!capture) continue;
 		if (!Array.isArray(searches)) continue;
-		for (let searchIdx = 0; searchIdx < searches.length; searchIdx++) {
-			var tryName = path.join(base, searches[searchIdx].replace('*', capture));
-			console.log('\t..', searches[searchIdx], tryName);
+
+		for (let search of searches) {
+			var tryName = path.join(base, search.replace('*', capture));
 
 			if (await fileExists(tryName)) {
 				return tryName;
@@ -83,13 +61,16 @@ async function findPathMatch(base, source, paths) {
 }
 
 
+function isRelative(name) {
+	return name.slice(0, 2) === './' || name.slice(0, 3) === '../';
+}
+
 export default function jsconfig(root) {
 	var jsConfig;
 	var basePath;
 	var paths;
 	var previouslyMatched = {};
 
-	console.log('====root', root);
 	async function readJsConfig() {
 		var jsConfigPath = path.join(root, 'jsconfig.json');
 		var exists = await fileExists(jsConfigPath);
@@ -114,23 +95,26 @@ export default function jsconfig(root) {
 		name: 'jsconfig',
 
 		async resolveId (source, importer, options) {
-			source = fixPath(source);
+			source = forceToPosix(source);
 
-//			console.log('---', source);
 			if (previouslyMatched[source] !== undefined) return previouslyMatched[source];
 			previouslyMatched[source] === null;
 
 			if (jsConfig === undefined) await readJsConfig();
 			if (!jsConfig) return null;
 
+			if (isRelative(source)) return null;
+
 			if (basePath) {
 				var tryName = path.join(root, basePath, source);
-				console.log('trying', tryName)
 				if (await fileExists(tryName)) {
 					previouslyMatched[source] = tryName;
 					return tryName;
 				}
 			}
+
+			if (source[0] === '/') return null;
+
 			if (paths) {
 				if (source.indexOf(root) === 0) return null;
 

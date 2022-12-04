@@ -1,4 +1,5 @@
-import {App, registry} from '@polylith/core';
+import {registry} from '@polylith/core';
+import {loadCss} from '@polylith/browser';
 
 var loaded = {}
 

@@ -5,33 +5,22 @@ import * as rollup from 'rollup';
 import { babel } from '@rollup/plugin-babel';
 import * as resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import rollupJson from "@rollup/plugin-json"
+import svgr from '@svgr/rollup'
 import html from 'rollup-plugin-html';
-
+import livereload from 'rollup-plugin-livereload';
+import styles from "rollup-plugin-styles";
+import nodePolyfills from 'rollup-plugin-polyfill-node';
 import loader from './plugin-loader.js';
 import mainHTML from './plugin-main-html.js';
 import features from './plugin-features.js';
-import styles from "rollup-plugin-styles";
 import resources from "./plugin-copy-resources.js";
 import jsconfig from "./plugin-jsconfig.js";
+import loadConfigs from "./plugin-config.js";
 
+import {forceToPosix, fileExists} from './utils.js'
 import ConfigFeature from './ConfigFeature.js';
 import Files from './Files.js';
-
-/**
- * call this function to check if the given file exists
- *
- * @param {String} path the name of the file
- * @returns {Promise<Boolean>} true if the file exists
- */
-
-async function fileExists(path) {
-    try {
-        await stat(path)
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
 
 /**
  * The base class for applications. Applications inherit from this class
@@ -41,56 +30,139 @@ export default class App {
 	 * Construct the app object.
 	 *
 	 * @param {String} name a name for the app
-	 * @param {String} root the root directory of the project. All other
-	 *  	paths will be relative to this path.
-	 * @param {String} index the relative path to the main source file from the
+	 * @param {Object} config
+	 * @property {String} root the full path to the root directory of the project.
+	 * 		All other paths will be relative to this path.
+	 * @proprty {String} index the relative path to the main source file from the
 	 * 		root. All source paths will be assumed to be relative to this path.
-	 * @param {String} dest the relative path to the destination folder from the
-	 * 		root for rolled up files
+	 * @property {String} dest the relative path to the destination folder from
+	 * 	the root for rolled up files
+	 * @property {String} spec the relative path to the testing source file from
+	 * 		the root. All source paths will be assumed to be relative to this
+	 * 		path.
+	 * @property {String} testDest the relative path to the testing destination
+	 * 	folder from the root for rolled up files
 	 */
+	constructor(name, config) {
+		var {root, index, dest, spec, testDest=''} = config;
 
-	constructor(name, root, index, dest) {
-		root = App.fixPath(root);
+		root = forceToPosix(root);
 		this.root = root;
+		this.routerRoot = '/' + name;
 
 		var filename = path.posix.join(root, index);
 		this.sourcePath = path.posix.dirname(filename);
 		this.destPath = path.posix.join(root, dest);
+		this.testPath = path.posix.join(root, testDest);
 
 		this.name = name;
 		this.index = index;
+		this.spec = spec;
 		this.fullIndexPath = path.posix.join(root, index);
+		this.fullSpecPath = spec ? path.posix.join(root, spec) : undefined;
 
 		this.loadables = [];
 		this.features = [];
 		this.featureIndexes = [];
-		this.configs = {};
+		this.configs = [];
 		this.manualChunkType = 'function';
 		this.manualChunks = [];
-		this.files = new Files(this.sourcePath, this.destPath);
+		this.files = new Files(this.sourcePath, this.destPath, this.testPath);
+		this.cssSpecs = [];
 		this.cssFiles = [];
-	}
-
-	static fileToPath(filename) {
-		filename = App.fixPath(filename);
-		return path.posix.dirname(filename);
+		this.liveReload = true;
+		this.templateVariables = {};
+		this.ns = name.replace(/[- ]+/g, '_').toUpperCase();
+		this.codeVariables = {};
 	}
 
 	/**
-	 * call this method to force the file path to use posix notation and remove
-	 * all drive information.
+	 * Call this method to set the code variable name space. An object with this
+	 * name will be attached to the window object with the code variables as
+	 * members. The default value for the name space is the app name in upper
+	 * snake case.
 	 *
-	 *
-	 * @param {String} src the filename wqe
-	 * @returns {String} the new path
+	 * @param {String} ns the name space name for added code variables. This
+	 * 		must be a valid JavaScript identifier.
 	 */
-	static fixPath(src) {
-		src = src.replace('file:', '');
-		src = src.replace('///', '');
-		src = src.replace(/.:/, '');
-		src = src.replace(/\\/g, '/');
+	setNamespace(ns) {
+		this.ns = ns;
+	}
 
-		return src;
+	getRouterRoot() {
+		return this.routerRoot;
+	}
+
+	setRouterRoot(root) {
+		this.routerRoot = root;
+	}
+
+	setRouterModule(modulePath) {
+		this.modulePath = path.posix.join(this.root, modulePath);
+	}
+
+	async router(appRouter) {
+		if (!this.modulePath) return;
+
+		try {
+			let module = await import(this.modulePath)
+			let router = module.default;
+			await router(appRouter);
+			return true;
+		} catch(e) {
+			console.error('error while building router', this.modulePath);
+			console.log(e);
+		}
+	}
+
+	/**
+	 * Call this method to add a code variable to the output html file. This
+	 * variable will be added the namsespace for the app.
+	 *
+	 * @param {String} name the name of tyhe variable. This must be a valid
+	 * 		JavaScript identifier.
+	 * @param {*} value the value of the variable to set. This can be any type
+	 * 		that can be serialized through JSON.
+	 */
+	 addCodeVariable(name, value) {
+		this.codeVariables[name] = value;
+	}
+
+	/**
+	 * Call this method to get the replacement value for ${codeVariables}. This
+	 * will be the code that adds all the codeVariables to the namespace.
+	 *
+	 * @returns {String} the replacement value for the codeVariables template
+	* 		variable;
+	 */
+	getCodeVariablesValue() {
+		var names = Object.keys(this.codeVariables);
+
+		// also include this process stuff, React seems to think it will always
+		// be there. Consider moving this into a plugin/feature of some sort
+		var codeBlock =
+	`<script>
+		window.process = {env: {NODE_ENV: 'dev'}};
+`;
+
+		if (names.length !== 0) {
+			var members = names.map(function(name) {
+					return `		${name}: ${JSON.stringify(this.codeVariables[name])},`
+			}, this);
+
+			codeBlock +=
+`		window.process = {env: {NODE_ENV: 'dev'}};
+		window.${this.ns} = {
+			${members.join('\n')}
+		}
+`;
+		}
+
+		codeBlock +=
+`	</script>
+`
+
+		return codeBlock;
 	}
 
 	/**
@@ -107,20 +179,81 @@ export default class App {
 		return './' + path;
 	}
 
+	/**
+	 * Call this method with true to reload the browser when any files in the
+	 * destination folder have changed.
+	 *
+	 * @param {Boolean} on set to true to turn on destination watching
+	 */
+	setLiveReload(on) {
+		this.liveReload = on;
+	}
+
+	/**
+	 * Call this method to set the template for the main application html. This
+	 * template file must have the required replacement strings for basic
+	 * functionality. Call setTemplateVariable to create application specific
+	 * repalcement values.
+	 *
+	 * @param {String} source the relative path from the application root to the
+	 * 		html template
+	 * @param {String} destination the relative path to the destination file
+	 */
 	setHtmlTemplate(source, destination) {
 		this.htmlTemplate = {source: source, destination: destination};
 	}
 
-	addConfig(config, root) {
-		this.configs[root] = config;
+	/**
+	 * Call this method to set the value of a template variable. Template
+	 * variables specify a location in the html template where the value will be
+	 * inserted. To specify where the value should be inserted in the template
+	 * file add the string "${variableName}" in the location.
+	 *
+	 * @param {*} name
+	 * @param {*} value
+	 */
+	setTemplateVariable(name, value) {
+		this.templateVariables[name] = value;
 	}
 
-	async addMainCss(specs) {
-		var files = new Files(this.sourcePath, this.destPath)
+	/**
+	 * Call this to add a configuration object to the application
+	 * @param {Object} config a configuration object that will be added to the
+	 * 		configuration store. Use get from @polylith/config to access
+	 */
+	addConfig(config) {
+		this.configs.push(config);
+	}
 
-	// get the file paths
-		specs.forEach(function(spec) {
-			files.addCopySpec('', spec);
+	/**
+	 * Call this method to add specifications for application css files  These
+	 * css files will be included in the html template. They will also be copied
+	 * to the destination folder
+	 *
+	 * @param {String} root the relative path from the source root to the path
+	 * 		to the origin of the caller. This will either be a feature root, or
+	 * 		empty for the main application the source pathPaths specified in the
+	 * 		resource spec are assumed to be relative to this.
+	 * @param {ResourceSpecList} specs the specification for the css files. These
+	 * 		will also be added as resources to be copied.
+	 */
+	addMainCss(root, specs) {
+		specs = specs.map(function(spec) {
+			return {root, spec}
+		}, this)
+		this.cssSpecs = [...this.cssSpecs, ...specs];
+	}
+
+	/**
+	 * Call this method to find all the css files specified by the css specs
+	 */
+	async findMainCss() {
+		var files = new Files(this.sourcePath, this.destPath, this.testPath)
+
+	// Find all the files from the added css specs. Also add them to be copied
+		this.cssSpecs.forEach(function(spec) {
+			files.addResourceSpec(spec.root, spec.spec);
+			this.files.addResourceSpec(spec.root, spec.spec);
 		}, this)
 
 		var expanded = await files.findAllFiles();
@@ -130,36 +263,40 @@ export default class App {
 			this.cssFiles.push(file.uri)
 		}, this);
 
-	// now add them to be copied
-		this.addResources('', specs);
+		this.cssSpecs.map(function(spec) {
+			this.files.addResourceSpec(spec.root, spec.spec);
+			return spec.spec;
+		}, this);
 	}
 
 	/**
 	 * Call this method to add a list of resources that will be moved to the
-	 * destination path when the application is built. This will either be a
-	 * feature root, or the source path
+	 * destination path when the application is built.
 	 *
-	 * @param {Array<import('./Files.js').CopySpec} resourceSpecs the copy specs
+	 * @param {String} root the relative path from the source root to the path
+	 * 		to the origin of the caller. This will either be a feature root, or
+	 * 		empty for the main application the source pathPaths specified in the
+	 * 		resource spec are assumed to be relative to this.
+	 * @param {ResourceSpecList} resourceSpecs the copy specs
 	 * 		for all the resources being added.
-	 * @param {String} root the path to the origin of the caller. Paths in
-	 * 		the spec are assumed to be relative to this.
 	 */
 	addResources(root, resourceSpecs) {
 		resourceSpecs.forEach(function(spec) {
-			this.files.addCopySpec(root, spec);
+			this.files.addResourceSpec(root, spec);
 		}, this)
 	}
 
 	/**
 	 * Call this method to add a feature to the application. This method is
 	 * given a path to the root of the feature. At build time the builder will
-	 * look directory for a file named build.js and if found import it and
-	 * call the default function passing it a pointner to this object.
+	 * look in the feature directory for a file named build.js and if found
+	 * import it and call the default function passing it a pointner to this
+	 * object.
 	 *
 	 * If there is no build.js file the builder will look for a build.json file.
 	 * If present that json will be loaded and used to build the feature.
 	 *
-	 * If that is not found it will look for an index.js file. and if found it
+	 * If that is not found it will look for an index.js file, and if found it
 	 * will add that to the list of feature index files which will be
 	 * automatically imported when the built code imports the @polylith/features
 	 * module
@@ -218,54 +355,53 @@ export default class App {
 	}
 
 	/**
-	 * If no manual chunk specifiers are added, then this will be used as the
-	 * default.
+	 * This is called by rollup if no manual chunk specifiers are added,
 	 *
-	 * @param {String} id this is the filename of the current file being
+	 * @param {String} filename this is the filename of the current file being
 	 * 		processed by rollup
 	 *
 	 * @returns {String} the chunk name if there is a match
 	 */
-	defaultManualChunks(id) {
-		if (id.includes('node_modules')) {
+	defaultManualChunks(filename) {
+		if (filename.includes('node_modules')) {
 			return 'vendor';
 		}
 	}
 
 	/**
-	 * This is called when manual chunk specifications have been added as an
-	 * array.
+	 * This is called by rollup when manual chunk specifications have been added
+	 * as an array.
 	 *
-	 * @param {String} id this is the filename of the current file being
+	 * @param {String} filename this is the filename of the current file being
 	 * 		processed by rollup
-	 * @returns {String} the name fo the chunk if there is a matching chunk
+	 * @returns {String} the name oo the chunk if there is a matching chunk
 	 * 		name specifier
 	 */
-	handleManualChunksArray(id) {
-		var fixId = App.fixPath(id);
+	handleManualChunksArray(filename) {
+		var posixFilename = forceToPosix(filename);
 		var result = this.manualChunks.find(function(spec) {
-			return fixId.includes(spec.includes);
+			return posixFilename.includes(spec.includes);
 		})
 
 		if (result) return result.name;
 	}
 
 	/**
-	 * This is called when the manual chunk specifiers are functions. Each
-	 * registered function is called in the reverse order to how they were
+	 * This is called by rollup when the manual chunk specifiers are functions.
+	 * Each registered function is called in the reverse order to how they were
 	 * added.
 	 *
-	 * @param {String} id this is the filename of the current file being
+	 * @param {String} filename this is the filename of the current file being
 	 * 		processed by rollup
 	 * @returns the chunk name if any of the callbacks return one
 	 */
-	handleManualChunksCallbacks(id) {
-		var fixId = App.fixPath(id);
+	handleManualChunksCallbacks(filename) {
+		var posixFilename = forceToPosix(filename);
 		if (this.manualChunks.length === 0) {
-			return this.defaultManualChunks(fixId);
+			return this.defaultManualChunks(posixFilename);
 		} else {
-			for (let idx = 0; idx < this.manualChunks.length; idx++) {
-				var result = this.manualChunks[idx](fixId);
+			for (chunk of this.manualChunks) {
+				var result = chunk(posixFilename);
 				if (result) return result;
 			}
 		}
@@ -290,12 +426,13 @@ export default class App {
 	 *
 	 * @param {String} root path relative to the source directory for the
 	 * 		feature to load.
+	 * @param {Boolean} forTest true if building test features
 	 */
-	async loadFeature(root) {
+	async loadFeature(root, forTest) {
 		var featurePath = path.posix.join(this.sourcePath, root);
-		var indexPath = path.posix.join(featurePath, 'index.js')
-		var builderPath = path.posix.join(featurePath, 'build.js');
-		var jsonPath = path.posix.join(featurePath, 'build.json');
+		var indexPath = path.posix.join(featurePath, forTest ? 'spec.js' : 'index.js')
+		var builderPath = path.posix.join(featurePath, forTest ? 'test.js' : 'build.js');
+		var jsonPath = path.posix.join(featurePath, forTest ? 'test.json' : 'build.json');
 
 		var indexExists = await fileExists(indexPath);
 		var builderExists = await fileExists(builderPath);
@@ -318,7 +455,7 @@ export default class App {
 				let content = JSON.parse(await readFile(jsonPath));
 
 				let builder = new ConfigFeature(content, root);
-				await builder.build(this)
+				await builder.build(this, forTest)
 			} catch (e) {
 				console.error(e);
 				throw e;
@@ -336,42 +473,73 @@ export default class App {
 		}
 	}
 
+	async testFeatures() {
+		var features = this.features;
+
+		for (let feature of features) {
+			await(this.loadFeature(feature, true));
+		}
+	}
+
+
 	/**
 	 *
+	 * @param {String} root the relative path from the source root to the
+	 * 		feature directory. Loadable paths are assumed to be relative to this
+	 * 		directory
 	 * @param {String} name unique name of the loadable that will be passed to
 	 * 		the load method
-	 * @param {String} main the relative path from the source folder to the entry
-	 * 		point of the loadable.
+	 * @param {String} index the relative path from the source folder to the
+	 * 		entry point of the loadable.
 	 * @param {String} [prefix] if given, the prefix on services created in
 	 * 		this loadable. When the loadable has been loaded, the start and
 	 * 		ready methods will be called on all services starting with this
 	 * 		prefix.
-	 * @param {Array<CopySpec>} [css] if supplied it will be a copy spec of the
-	 * 		css files that will included when the module is loaded
+	 * @param {ResourceSpecList} [css] if give, it will be a list of resource
+	 * 		specifications for the css files that will be included when the
+	 * 		module is loaded
 	 */
-	async addLoadable(root, name, main, prefix, css) {
-		// expand css specs
-		var cssUris = css ? [] : undefined;
-		if (css) {
-			var files = new Files(this.sourcePath, this.destPath)
-			css.forEach(function(spec) {
-				files.addCopySpec(root, spec);
-			}, this)
-			var expanded = await files.findAllFiles();
-			var keys = Object.keys(expanded);
-			keys.forEach(function(key){
-				var file = expanded[key];
-				cssUris.push(file.uri)
-			}, this)
-		}
-
-		var dest = path.posix.join(this.sourcePath, main);
-		this.loadables.push({name, path: dest, prefix, css: cssUris});
+	async addLoadable(root, name, index, prefix, css) {
+		var indexPath = path.posix.join(this.sourcePath, index);
+		this.loadables.push({name, index: indexPath, prefix, root, css});
 	}
 
+	/**
+	 * Call this method to locate all the css files for a loadable. These css
+	 * files will be loaded into the browser when this loadable has been loaded
+	 *
+	 * @param {Loadable} loadable
+	 */
+	async findLoadableCss(loadable) {
+		if (loadable.css) {
+			var files = new Files(this.sourcePath, this.destPath)
+			loadable.css.forEach(function(spec) {
+				files.addResourceSpec(loadable.root, spec);
+			}, this)
 
-	buildMainCss() {
+			var expanded = await files.findAllFiles();
+			var keys = Object.keys(expanded);
+
+			var cssUris = keys.map(function(key){
+				var file = expanded[key];
+				return file.uri
+			}, this)
+
+			loadable.css = cssUris;
+		}
+	}
+
+	/**
+	 * Call this method to build the template variable for the main html css
+	 * files
+	 *
+	 * @returns {Promise<String>} the value of the mainCss template variable
+	 */
+	async buildMainCss() {
 		var cssTags = '';
+
+		await this.findMainCss();
+
 		this.cssFiles.forEach(function(uri) {
 			cssTags += `		<link rel="stylesheet" href="${uri}"></link>`
 		}, this);
@@ -380,53 +548,151 @@ export default class App {
 	}
 
 	/**
-	 * The build method calls this method to create the rollup configuration
-	 * object
+	 * Call this method to create the configuration for testing the app
 	 *
 	 * @returns {Object} rollup configuration object
 	 */
 
-	buildConfiguration() {
-		var input = [this.fullIndexPath];
-		this.loadables.forEach(function(spec) {
-			input.push(spec.path);
-		});
+	async generateTestConfiguration() {
+		var input = [this.fullSpecPath];
 
-		this.variables = {
-			pattern: 'main-js',
-			replacement: `<script type="module" src="${this.index}"></script>`
+		// using a for loop because we are making an async call
+		for (let loadable of this.loadables) {
+		// find all the css files for the loadables
+			await this.findLoadableCss(loadable);
+			input.push(loadable.index);
 		}
 
 		var manualChunks = this.getManualChunks();
-		var mainCss = this.buildMainCss();
+
+		var plugins = [
+			resolve.nodeResolve({
+				preferBuiltins: true,
+				browser: true,
+				extensions: ['.js', '.jsx']
+			}),
+			babel({
+				presets: ['@babel/preset-react'],
+				babelHelpers: 'bundled',
+				extensions: ['.js', '.jsx'],
+			}),
+			commonjs(),
+			nodePolyfills(),
+			rollupJson(),
+			jsconfig(this.root),
+			svgr({svgo: false}),
+			loadConfigs(this.configs),
+			loader(this.loadables),
+			features(this.featureIndexes),
+			styles(),
+			resources(this.name, this.files, true)
+		];
 
 		var config = {
 			input : {
 				input: input,
-				plugins: [
-					resolve.nodeResolve({
-						extensions: ['.js', '.jsx']
-					}),
-					commonjs(),
-					babel({
-						presets: ['@babel/preset-react'],
-						babelHelpers: 'bundled',
-					}),
-					loader(this.loadables),
-					features(this.featureIndexes),
-					jsconfig(this.root),
-					html({
-						include: path.join(this.sourcePath, "**/*.html"),
-					}),
-					styles(),
-					mainHTML({
-						root: this.root,
-						source: this.htmlTemplate.source,
-						destination: this.htmlTemplate.destination,
-						replaceVars: {mainCss: mainCss},
-					}),
-					resources(this.name, this.files)
-				],
+				plugins: plugins,
+			},
+			output : {
+				output : {
+					sourcemap: true,
+					dir : this.testPath,
+					format: 'es',
+					assetFileNames: function(chunkInfo) {
+						return '[name]-[hash][extname]';
+					},
+					entryFileNames: function(chunkInfo) {
+						var entry = forceToPosix(chunkInfo.facadeModuleId);
+						var found = this.loadables.find(function(loadable) {
+							return loadable.index === entry;
+						}, this);
+						var exists = Boolean(found);
+
+						if (exists) return (`${found.name}.js`);
+						if (entry === this.fullSpecPath) {
+							return `${this.name}.js`;
+						}
+						return '[name].js';
+					}.bind(this),
+				},
+			},
+			watch : {
+				watch: {
+					buildDelay: 250,
+					exclude: 'node_modules/**',
+					clearScreen: true,
+				}
+			}
+		};
+
+		return config;
+
+	}
+
+	/**
+	 * Call this method to create the configuration for building the app
+	 *
+	 * @returns {Object} rollup configuration object
+	 */
+
+	async generateBuildConfiguration() {
+		var input = [this.fullIndexPath];
+
+		// using a for loop because we are making an async call
+		for (let loadable of this.loadables) {
+		// find all the css files for the loadables
+			await this.findLoadableCss(loadable);
+			input.push(loadable.index);
+		}
+
+		var manualChunks = this.getManualChunks();
+		var mainCss = await this.buildMainCss();
+		var codeVariables = this.getCodeVariablesValue();
+
+		this.templateVariables['mainCss'] = mainCss;
+		this.templateVariables['codeVariables'] = codeVariables;
+
+		var plugins = [
+			resolve.nodeResolve({
+				preferBuiltins: true,
+				browser: true,
+				extensions: ['.js', '.jsx']
+			}),
+			babel({
+				presets: ['@babel/preset-react'],
+				babelHelpers: 'bundled',
+			}),
+			commonjs(),
+			nodePolyfills(),
+			rollupJson(),
+			jsconfig(this.root),
+			svgr({svgo: false}),
+			loadConfigs(this.configs),
+			loader(this.loadables),
+			features(this.featureIndexes),
+			html({
+				include: path.join(this.sourcePath, "**/*.html"),
+			}),
+			styles(),
+			mainHTML({
+				root: this.root,
+				source: this.htmlTemplate.source,
+				destination: this.htmlTemplate.destination,
+				templateVars: this.templateVariables,
+			}),
+			resources(this.name, this.files, false)
+		];
+
+		if (this.liveReload) {
+			plugins.push(
+				livereload(this.destPath)
+			)
+		}
+
+		var config = {
+			input : {
+				input: input,
+				plugins: plugins,
 			},
 			output : {
 				output : {
@@ -437,9 +703,9 @@ export default class App {
 						return '[name]-[hash][extname]';
 					},
 					entryFileNames: function(chunkInfo) {
-						var entry = App.fixPath(chunkInfo.facadeModuleId);
+						var entry = forceToPosix(chunkInfo.facadeModuleId);
 						var found = this.loadables.find(function(loadable) {
-							return loadable.path === entry;
+							return loadable.index === entry;
 						}, this);
 						var exists = Boolean(found);
 
@@ -464,14 +730,35 @@ export default class App {
 		return config;
 	}
 
-	async build() {
-		await this.buildFeatures();
-		this.config = this.buildConfiguration();
+	async test() {
+		this.testing = true;
+		if (!this.testPath || !this.spec) {
+			console.error('Building tests is not properly configured.')
+			return false;
+		}
+
+		await this.testFeatures();
+		this.config = await this.generateTestConfiguration();
 
 		const bundle = await rollup.rollup(this.config.input);
 		await bundle.generate(this.config.output);
 		await bundle.write(this.config.output);
 		await bundle.close();
+
+		return true;
+	}
+
+	async build() {
+		this.testing = false;
+		await this.buildFeatures();
+		this.config = await this.generateBuildConfiguration();
+
+		const bundle = await rollup.rollup(this.config.input);
+		await bundle.generate(this.config.output);
+		await bundle.write(this.config.output);
+		await bundle.close();
+
+		return true;
 	}
 
 	watch() {
@@ -493,14 +780,14 @@ export default class App {
 			}
 
 			if (event.code === 'BUNDLE_START') {
-				process.stdout.write("\u001b[2J\u001b[0;0H");
-				console.log(event);
+//				console.log(event);
 			}
 
 			if (event.code === 'BUNDLE_END') {
-				process.stdout.write("\u001b[2J\u001b[0;0H");
-				console.log(event);
+//				console.log(event);
 			}
 		}.bind(this));
+		return true;
 	}
+
 }

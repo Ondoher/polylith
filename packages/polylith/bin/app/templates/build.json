@@ -1,0 +1,32 @@
+{
+	"name": "{app}",
+	"dest": "{dest}{path}",
+	"source": "{src}{path}",
+	"index": "{src}{path}index.js",
+	"template": {
+		"source": "{src}{path}/templates/index.html",
+		"destination": "{dest}{path}/index.html"
+	},
+	"resources": [
+		{
+			"dest": "styles",
+			"cwd": "styles",
+			"glob": "**/*.css",
+			"keepNest": true
+		},
+		{
+			"dest": "images",
+			"cwd": "images",
+			"glob": "**/*.{png,jpg,gif,svn}",
+			"keepNest": true
+		}
+	],
+	"css": [
+		{
+			"dest": "styles",
+			"cwd": "styles",
+			"glob": "**/*.css",
+			"keepNest": true
+		}
+	]
+}

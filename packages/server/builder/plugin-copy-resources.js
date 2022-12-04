@@ -6,16 +6,27 @@ var copied= {}
  *  copy
  * @returns {Object} the plugin
  */
-export default function(name, files) {
+export default function(name, files, forTest) {
 	return {
-		name: "main-html-resources",
+		name: "copy-resources",
+
+		buildStart() {
+			var folders = files.getAllFolders();
+			folders.forEach(function(name) {
+				this.addWatchFile(name);
+			}, this);
+		},
+
+		watchChange(file, event) {
+			files.copyOneFile(file, true);
+		},
 
 		async generateBundle(outputOptions, bundleInfo) {
 			// assets are not watched, never copy more than once
 			if (copied[name]) return;
 			return new Promise(async function (resolve, reject) {
 				try {
-					await files.copyFiles();
+					await files.copyFiles(forTest);
 					resolve(true)
 					copied[name] = true;
 				} catch (e) {

@@ -1,33 +1,57 @@
 import App from './App.js';
 import path from 'node:path/posix';
+import {forceToPosix} from './utils.js'
 
+/**
+ * This class is used to build an application from a configuration file.
+ */
 export default class ConfigApp extends App {
 	constructor (config, root) {
-		root = App.fixPath(root);
+		root = forceToPosix(root);
 		var name = config.name || 'unnamed';
-		var index = config.index || path.join(root, 'src', 'index.js');
-		var dest = config.dest || path.join(root, 'dist');
+		var index = config.index || 'src/index.js';
+		var dest = config.dest || 'dist';
+		var spec = config.spec;
+		var testDest = config.testDest;
 
-		super(name, root, index, dest);
+		super(name, {root, index, dest, spec, testDest});
 		this.config = config;
 
-		if (!index.template || !index.template.source) throw new Error('html source not defined in config file');
-		var source = index.template.source;
+		if (!config.template || !config.template.source) throw new Error('html source not defined in config file');
+		var source = config.template.source;
 		var sourceFilename = path.basename(source);
-		var destination = index.template.destination || path.join(dest, sourceFilename)
+		var destination = config.template.destination || path.join(dest, sourceFilename);
 		this.setHtmlTemplate(source, destination);
 
-		if (config.manualChunks) this.addManualChunks(config.manualChunks);
+		if (config.manualChunks) {
+			config.manualChunks.forEach(function(chunk) {
+				this.addManualChunks(chunk);
+			}, this)
+		}
+
 		if (this.config.features) {
 			this.config.features.forEach(function(feature) {
 				this.addFeature(feature);
 			}.bind(this))
 		}
 
-		if (config.resources) ;
-	}
+		if (config.resources && Array.isArray(config.resources)) this.addResources('', config.resources);
+		if (config.css) this.addMainCss('', config.css);
 
-	async getFeatures() {
-		return this.config.features || [];
+		if (config.variables) {
+			var names = Object.keys(config.variables);
+
+			names.forEach(function(name) {
+				this.addCodeVariable(name, config.variables[name]);
+			}, this)
+		}
+
+		if (config.routerRoot) {
+			this.setRouterRoot(config.routerRoot);
+		}
+
+		if (config.router) {
+			this.setRouterModule(config.router);
+		}
 	}
 }

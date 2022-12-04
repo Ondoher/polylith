@@ -1,0 +1,42 @@
+polylith <command> <app> <name> [options]
+
+Usage:
+
+polylith init           initialize a polylith project in the current directory
+polylith app            create a new polylith application in the current
+                        directory.
+polylith build          builds the given app. If no app is specified it will
+                        build the default app
+polylith clear          clears the distribution folder for the given app. If no
+                        app is specified it will clear the default
+polylith run            builds the specified application and then runs it. If no
+                        app is specified it will run the default app
+polylith watch          builds and runs the specified app in dev mode. If no app
+                        is specified it will run the default app. Dev mode will
+                        monitor source for file changes and then rebuild and
+                        reload the page with those changes.
+
+Parameters:
+  app                   for build, clear, run and dev, if this parameter is not
+                        specified if will apply to the default app
+  name                  this is the name the non app object being created such
+                        as the feature
+
+Options:
+  --build, -b           the directory that contains app defintions
+  --destination, -d     the root destination folder for the build
+  --src -s              the root source directory
+  --code, -c            when creating a new application or feature, it will
+                        create a js file rather than a json file.
+  --index, -i           when used with feature it will only created an index
+                        file. If specified it overrides code options
+  --multiple, -m        when creating a new application it will make the
+                        application in a subdirectory of src, and set src/<app>
+                        as the source root. It will also set the destination to
+                        be dist/<app>.
+  --all, -a             when used with build, clear, run or dev this will act on
+                        all apps.
+  --help, -h            display this file
+  --react, -r           create a new react app, or setup the initial project as
+                        a react app. This is the default. use --react false to
+                        turn it off

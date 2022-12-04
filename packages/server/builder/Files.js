@@ -3,27 +3,8 @@ import path from 'node:path/posix'
 import {ensureDir} from 'fs-extra';
 import { copyFile } from 'node:fs/promises';
 import App from './App.js';
-
-/**
- * @typedef {Object} CopySpec
- * @property {String} dest the relative path of the copy destination from the
- *  application's destination path.
- * @property {String} cwd the relative path from the spec root to search for
- *  files
- * @property {String} glob the search expression for the files to copy, in glob
- *  format
- * @property {Boolean} [keepNest] if true then the nesting of the found file
- *  relative to the cwd property will be retained when the file is copied.
- *  Defaults to false
- */
-
-/**
- * @typedef {Object} FileSpec
- * @property {String} name the full path to the file being copied
- * @property {String} searchRoot the absolute path to where the search started
- * @property {CopySpec} spec the specifier for how to find and copy files
- */
-
+import {forceToPosix} from './utils.js'
+import './types.js'
 /**
  * create an instance of this class to specify and and copy files from source
  * to destination.
@@ -36,11 +17,17 @@ export default class Files {
 	 *  destination directory
 	 * @param {String} src the abolute path to the applications source
 	 *  directory
+	 *
+	 * @param {String} src the abolute path to the applications test
+	 *  directory
 	 */
-	constructor(src, dest) {
+	constructor(src, dest, testDest) {
 		this.dest = dest;
+		this.testDest = testDest;
 		this.src = src;
+		/** @type {CopyInfoList} */
 		this.files = {};
+		this.testFiles = {};
 		this.specs = [];
 	}
 
@@ -52,20 +39,23 @@ export default class Files {
 	 * @param {String} root the originating path of the specifier. This is a
 	 *  relative path from the project src path. This is probably the location
 	 *  of the feature, or empty for the src path itself.
-	 * @param {CopySpec} spec the specification for how to find and copy files
+	 * @param {ResourceSpec} spec the specification for how to find and copy files
 	 */
-	addCopySpec(root, spec) {
+	addResourceSpec(root, spec) {
 		spec.root = root;
 		this.specs.push(spec);
 	}
 
 	/**
-	 * call this methid to generate the destination filename from the spec and
+	 * call this method to generate the destination filename from the spec and
 	 * the source filename
 	 *
-	 * @param {CopySpec} spec the spec that generate the filename
-	 * @param {String} srcFilename the source filename
-	 * @returns
+	 * @param {String} searchRoot the full path to the directory where the
+	 * 		search started that found this file
+	 * @param {ResourceSpec} spec the spec that found the file
+	 * @param {String} srcFilename the full path to the source file
+	 *
+	 * @returns {String} the full path to the destination file
 	 */
 	makeDestination(searchRoot, spec, srcFilename) {
 		var fullPath = searchRoot;
@@ -81,41 +71,107 @@ export default class Files {
 		return destFilename;
 	}
 
+	makeTestDestination(searchRoot, spec, srcFilename) {
+		var fullPath = searchRoot;
+		var relativePath = srcFilename.slice(fullPath.length + 1);
+		var destFilename = '';
+
+		if (spec.keepNest) {
+			destFilename = path.join(this.testDest, spec.dest, relativePath);
+		} else {
+			destFilename = path.join(this.testDest, spec.dest, path.basename(srcFilename));
+		}
+
+		return destFilename;
+
+	}
+
 	/**
 	 * Call this method once per spec to add a list of files to the complete
 	 * list of all the files to be copied. If multiple files are found through
 	 * different specs then the spec with the longest search root will take
 	 * presidence, since it is the spec with the greatest specificity
 	 *
-	 * @param {Array<String>} files absolute filepaths of files that have been found
-	 * @param {String} searchRoot the absolute path of the spec root
-	 * @param {CopySpec} spec the spec that was used to find these files.
+	 * @param {String} searchRoot the full path to the directory where the
+	 * 		search started that found this file
+	 * @param {Array.<String>} files full paths to files that have been found
+	 * @param {ResourceSpec} spec the spec that was used to find these files.
+	 *
+	 * @returns {CopyInfoList} the list of files found for this spec
 	 */
 	addFiles(searchRoot, files, spec) {
+		/** @type {CopyInfoList} */
+		var foundFiles = {};
+
 		// the rule here is that files that are found by multiple specs will be
 		// controlled according to the spec with the deepest nested search path.
-		// Since file paths here are absolute tthis will always be based on the
+		// Since file paths here are absolute this will always be based on the
 		// string length.
 		files.forEach(function(file) {
-			file = App.fixPath(file);
+			file = forceToPosix(file);
+
 			// reconcile conflicts
 			if (this.files[file]) {
 				var copyInfo = this.files[file];
 				if (copyInfo.searchRoot.length > searchRoot.length) return;
 			}
+
 			var destination = this.makeDestination(searchRoot, spec, file);
+			var testDestination = this.makeTestDestination(searchRoot, spec, file);
 			var uri = destination.slice(this.dest.length + 1);
 
-			this.files[file] = {
+			foundFiles[file] = {
 				name: file,
-				destFilename: destination,
-				uri: uri,
 				searchRoot: searchRoot,
+				destFilename: destination,
+				testDestFilename: testDestination,
+				uri: uri,
 				spec: spec,
 			}
-		}, this)
+		}, this);
+
+		this.files = {...this.files, ...foundFiles}
+
+		return foundFiles;
 	}
 
+	/**
+	 * 	Call this method to get all the folders where files can copied from
+	 *
+	 * @returns {Array.<String>}
+	 */
+	getAllFolders() {
+		var folders = 	this.specs.map(function(spec){
+			return path.join(this.src, spec.root, spec.cwd);
+		}, this);
+
+		return folders;
+	}
+
+
+	/**
+	 * Call this method to copy a single file into its destination location
+	 *
+	 * @param {String} file the full path of the file to be copied
+	 */
+	async copyOneFile(file, updated, forTest) {
+		file = forceToPosix(file);
+
+		var destination = forTest ? this.files[file] && this.files[file].testDestFilename : this.files[file] && this.files[file].destFilename;
+
+		if (destination && updated) {
+			console.log(`file ${file} updated, copied to ${destination}`);
+			await copyFile(file, destination);
+		}
+	}
+
+	/**
+	 * Call this method to find all the files specified by a spec.
+	 *
+	 * @param {ResourceSpec} spec the specification for the files to find
+	 *
+	 * @returns {Promise.<CopyInfoList>} all the files that have been found so far.
+	 */
 	async findFiles(spec) {
 		var searchRoot = path.join(this.src, spec.root, spec.cwd);
 		var options = {
@@ -136,38 +192,41 @@ export default class Files {
 
 	/**
 	 * Call this method to locate all the files to be found from all the copy
-	 * specs that have been added
+	 * specs that have been added.
 	 *
-	 * @returns {Promise<Array<FileSpec>>} the list of all files. This is also
-	 *  stored in the object variable this.files
+	 * @returns {Promise<CopyInfoList>} the list of all files that have
+	 * 		been found. This is also stored in the object variable this.files
 	 */
 	async findAllFiles() {
+		if (this.filesFound) return this.files;
+
 		// using a for loop here because we are making async calls
-		for (let idx = 0; idx < this.specs.length; idx++) {
-			let spec = this.specs[idx];
+		for (let spec of this.specs) {
 			await this.findFiles(spec);
 		}
+
+		this.filesFound = true;
 
 		return this.files;
 	}
 
 	/**
-	 * Call this method to copy all the files that have been specified through
-	 * addCopySpec
+	 * Call this method to copy all the files that have been specified by
+	 * calling addResourceSpec to their destination directories
+	 *
+	 * @param {Boolean} forTest set true if copying files to test destination
 	 */
-	async copyFiles() {
+	async copyFiles(forTest) {
 		await this.findAllFiles();
 
 		var filenames = Object.keys(this.files);
+
 		// using a for loop because we are making async calls
-		for (let idx = 0 ; idx < filenames.length; idx++) {
-			let srcFilename = filenames[idx];
-			let destFilename = this.files[srcFilename].destFilename;
-			var destFilePath = path.dirname(destFilename);
-			// we will override existing destination files. This could have
-			// unintended consequences
+		for (let srcFilename of filenames) {
+			let destFilename = forTest ? this.files[srcFilename].testDestFilename : this.files[srcFilename].destFilename;
+			let destFilePath = path.dirname(destFilename);
+
 			try {
-//				console.log(`copying ${srcFilename} to ${destFilename}`);
 				await ensureDir(destFilePath);
 				await copyFile(srcFilename, destFilename);
 			} catch (e) {

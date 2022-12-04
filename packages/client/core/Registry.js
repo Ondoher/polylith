@@ -1,7 +1,7 @@
-import { ServiceOject } from "./ServiceObject";
-import { makeEventable} from "./Eventable";
+import { ServiceOject } from "./ServiceObject.js";
+import { makeEventable} from "./Eventable.js";
 
-class Registry {
+export class Registry {
 	constructor () {
 		this.services = {};
 
@@ -103,6 +103,7 @@ class Registry {
 		return Promise.allSettled(promises)
 			.then(function () {
 				this.callAll(services, 'ready');
+				this.fire('ready', prefix);
 			}.bind(this));
 	}
 }

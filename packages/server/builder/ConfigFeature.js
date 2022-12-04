@@ -1,5 +1,6 @@
 import Feature from './Feature.js';
 import path from 'node:path/posix';
+import App from './App.js';
 
 export default class ConfigFeature extends Feature {
 	/**
@@ -18,13 +19,15 @@ export default class ConfigFeature extends Feature {
 	 *
 	 * @param {App} app the application for the feature
 	 */
-	async build(app) {
+	async build(app, forTest) {
 		var config = this.config;
 
-		if (config.loadables && Array.isArray(config.loadables)) {
-			for (let loadable of config.loadables){
-				if (loadable.name && loadable.index) {
-					await app.addLoadable(this.root, loadable.name, path.join(this.root, loadable.index), loadable.prefix, loadable.css);
+		if (!forTest) {
+			if (config.loadables && Array.isArray(config.loadables)) {
+				for (let loadable of config.loadables) {
+					if (loadable.name && loadable.index) {
+						await app.addLoadable(this.root, loadable.name, path.join(this.root, loadable.index), loadable.prefix, loadable.css);
+					}
 				}
 			}
 		}
@@ -32,5 +35,6 @@ export default class ConfigFeature extends Feature {
 		if (config.index) app.addFeatureIndex(path.join(this.root, config.index));
 		if (config.config) app.addConfig(config.config, this.root);
 		if (config.resources && Array.isArray(config.resources)) app.addResources(this.root, config.resources);
+		if (config.css && Array.isArray(config.css)) app.addMainCss(this.root, config.css);
 	}
 }

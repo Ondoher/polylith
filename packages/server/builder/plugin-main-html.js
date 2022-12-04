@@ -6,12 +6,6 @@ import {readFile, writeFile} from 'node:fs/promises';
 const INVALID_ARGS_ERROR =
   "[plugin-main-html] You did not provide a template or target!";
 
-/**
- * Takes an HTML file as a template and replaces variables.
- * @param {Object} options The options object.
- * @return {Object} The rollup code object.
- */
-
 function createScriptTags(scripts) {
 	var tags = '';
 	scripts.forEach(function(script) {
@@ -22,54 +16,58 @@ function createScriptTags(scripts) {
 	return tags;
 }
 
-export default function(options = {}) {
-  var { root, source, destination, replaceVars } = options;
+/**
+ * Takes an HTML file as a template and replaces template variables with
+ * assigned values
+ *
+ * @param {Object} options The options object.
+ * @return {Object} The rollup plugin object.
+ */
+ export default function(options = {}) {
 
-  return {
-    name: "main-html-template",
+	var { root, source, destination, templateVars } = options;
 
-    async generateBundle(outputOptions, bundleInfo) {
-		return new Promise(async function (resolve, reject) {
-			try {
-				var includes = [];
-				var names = Object.keys(bundleInfo);
-				var scripts;
+	return {
+		name: "main-html-template",
 
-				if (!destination && !source) throw new Error(INVALID_ARGS_ERROR);
+		async generateBundle(outputOptions, bundleInfo) {
+			var includes = [];
+			var names = Object.keys(bundleInfo);
+			var scripts;
 
-				names.forEach(function(name) {
-					var entry = bundleInfo[name];
-					if (!entry.isDynamicEntry) {
-						includes.push(name);
-					}
-				});
+			if (!destination && !source) throw new Error(INVALID_ARGS_ERROR);
 
-				scripts = createScriptTags(includes);
-				replaceVars["scripts"] = scripts;
-
-				var sourceFilePath = path.join(root, source);
-				var destinationFilePath = path.join(root, destination);
-
-				// Read the file
-				var content = await readFile(sourceFilePath, 'utf-8');
-				if (replaceVars) {
-					var varNames = Object.keys(replaceVars);
-					varNames.forEach(function(name) {
-						var replacement = replaceVars[name]
-						var escapedName = escapeStringRegexp('${' + name + '}');
-						var regex = new RegExp(escapedName, 'g');
-						content = content.replace(regex, replacement);
-					});
+			names.forEach(function(name) {
+				var entry = bundleInfo[name];
+				if (!entry.isDynamicEntry) {
+					includes.push(name);
 				}
+			});
 
-				// write the injected template to a file
-				await ensureFile(destinationFilePath);
-				writeFile(destinationFilePath, content, 'utf-8');
-				resolve();
-			} catch (e) {
-				reject(e);
+			scripts = createScriptTags(includes);
+			templateVars["scripts"] = scripts;
+
+			var sourceFilePath = path.join(root, source);
+			var destinationFilePath = path.join(root, destination);
+
+			var content = await readFile(sourceFilePath, 'utf-8');
+
+			if (templateVars) {
+				var varNames = Object.keys(templateVars);
+				varNames.forEach(function(name) {
+					var replacement = templateVars[name]
+					var escapedName = escapeStringRegexp('${' + name + '}');
+					var regex = new RegExp(escapedName, 'g');
+					content = content.replace(regex, replacement);
+				});
 			}
-      });
-    },
-  };
+
+			// remove template vars that were not replaced
+			content = content.replace(/\$\{.*?\}/, '');
+
+			// write the injected template to a file
+			await ensureFile(destinationFilePath);
+			writeFile(destinationFilePath, content, 'utf-8');
+		},
+	};
 }
