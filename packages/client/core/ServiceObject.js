@@ -52,8 +52,4 @@ export class ServiceOject extends EventBus {
 	invoke(name, ...args) {
 		return this.fire(name, ...args);
 	}
-
-	async asyncInvoke(name, ...args) {
-		return await this.asyncFire(name, ...args);
-	}
 }

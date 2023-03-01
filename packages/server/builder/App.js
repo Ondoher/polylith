@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {readFile, writeFile, stat} from 'node:fs/promises';
-
+import express from 'express';
 import * as rollup from 'rollup';
 import { babel } from '@rollup/plugin-babel';
 import * as resolve from '@rollup/plugin-node-resolve';
@@ -97,10 +97,24 @@ export default class App {
 		this.routerRoot = root;
 	}
 
+	/**
+	 * Call this method to set the relative path from the project root, to a
+	 * module that exports a default asynchrounsous method that takes an express
+	 * router and will add to it the application specific routes.
+	 *
+	 * @param {String} modulePath
+	 */
 	setRouterModule(modulePath) {
 		this.modulePath = path.posix.join(this.root, modulePath);
 	}
 
+	/**
+	 * This is called by the polylith server to setup routing for the
+	 * application
+	 *
+	 * @param {express.Router} appRouter
+	 * @returns {Promise}
+	 */
 	async router(appRouter) {
 		if (!this.modulePath) return;
 
@@ -161,7 +175,6 @@ export default class App {
 		codeBlock +=
 `	</script>
 `
-
 		return codeBlock;
 	}
 
@@ -209,8 +222,8 @@ export default class App {
 	 * inserted. To specify where the value should be inserted in the template
 	 * file add the string "${variableName}" in the location.
 	 *
-	 * @param {*} name
-	 * @param {*} value
+	 * @param {String} name the name of the template variable
+	 * @param {String} value that will be replaced
 	 */
 	setTemplateVariable(name, value) {
 		this.templateVariables[name] = value;
@@ -218,6 +231,7 @@ export default class App {
 
 	/**
 	 * Call this to add a configuration object to the application
+	 *
 	 * @param {Object} config a configuration object that will be added to the
 	 * 		configuration store. Use get from @polylith/config to access
 	 */
@@ -465,6 +479,9 @@ export default class App {
 		} else if (indexExists) this.featureIndexes.push(indexPath);
 	}
 
+	/**
+	 * Call this method to load the features for building the application
+	 */
 	async buildFeatures() {
 		var features = this.features;
 
@@ -473,6 +490,9 @@ export default class App {
 		}
 	}
 
+	/**
+	 * Call this method to load the features when building the tests
+	 */
 	async testFeatures() {
 		var features = this.features;
 
@@ -481,8 +501,8 @@ export default class App {
 		}
 	}
 
-
 	/**
+	 * Call this method to add a module that can be loaded during runtime
 	 *
 	 * @param {String} root the relative path from the source root to the
 	 * 		feature directory. Loadable paths are assumed to be relative to this
@@ -626,8 +646,7 @@ export default class App {
 		};
 
 		return config;
-
-	}
+}
 
 	/**
 	 * Call this method to create the configuration for building the app
@@ -730,6 +749,11 @@ export default class App {
 		return config;
 	}
 
+	/**
+	 * Call this method to build the tests for the application
+	 *
+	 * @returns true if successful, false otherwise
+	 */
 	async test() {
 		this.testing = true;
 		if (!this.testPath || !this.spec) {
@@ -748,6 +772,11 @@ export default class App {
 		return true;
 	}
 
+	/**
+	 * Call this method to build the application
+	 *
+	 * @returns true if successful, false otherwise
+	 */
 	async build() {
 		this.testing = false;
 		await this.buildFeatures();
@@ -761,6 +790,10 @@ export default class App {
 		return true;
 	}
 
+	/**
+	 * Call this method to watch the source for changes, and rebuild when they
+	 * happen.
+	 */
 	watch() {
 		var watchConfig  = {
 			...this.config.input,
