@@ -1,1 +1,0 @@
-console.log('Loaded feture 2 from dynamic feature 1')
