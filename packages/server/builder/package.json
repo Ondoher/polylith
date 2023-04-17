@@ -1,11 +1,17 @@
 {
   "name": "@polylith/builder",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "The polylith builder",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "homepage": "https://github.com/Ondoher/polylith#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ondoher/polylith",
+    "directory": "packages/server/builder"
   },
   "author": "Glenn Anderson",
   "license": "MIT",

@@ -1,9 +1,14 @@
 {
   "name": "polylith",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "description": "cli for the polylith environment",
   "bin": {
     "polylith": "bin/polylith.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ondoher/polylith",
+    "directory": "packages/polylith"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

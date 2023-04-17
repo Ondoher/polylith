@@ -1,7 +1,12 @@
 {
   "name": "@polylith/config-store",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ondoher/polylith",
+    "directory": "packages/client/config-store"
+  },
   "main": "src/index.js",
   "type": "module",
   "scripts": {
