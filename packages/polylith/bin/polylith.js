@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import child_process  from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { processManifest } from './templates.js';
-import { watch, build, test } from './apps.js';
+import { watch, build, test, run, serve } from './apps.js';
 
 var exec = promisify(child_process.exec);
 var argv = minimist(process.argv.slice(2))
@@ -73,14 +73,13 @@ function getOption(name, short) {
 }
 
 /**
- * Call this method to read the polylith configuration file. This is assumed to
- * be in the working directory.
+ * Caqll this method to read a single configuration JSON file,
  *
- * @returns {Object} the json parsed object from the config file, or the default
- * 		options if the file does not exist
+ * @param {String} filename the path of the file to read
+ *
+ * @returns {Object} the configuration
  */
-async function readConfig() {
-	var filename = path.join(workingDir(), 'polylith.json');
+async function readOneConfig(filename) {
 	var exists = await fileExists(filename);
 	var config = {};
 
@@ -88,12 +87,33 @@ async function readConfig() {
 		try {
 			config = JSON.parse(await readFile(filename, 'utf-8'));
 		} catch (e) {
-			console.warn('unable to load polylith configuration file');
+			console.warn('unable to load polylith configuration file ', filename);
 			console.warn(e.message);
 		}
 	}
 
 	return config;
+}
+
+/**
+ * Call this method to read the polylith configuration file and the environment
+ * specific configuration file. This is assumed to be in the working directory.
+ *
+ * @returns {Object} the json parsed object from the config file, or the default
+ * 		options if the file does not exist
+ */
+async function readConfig() {
+	var envExt = process.env.NODE_ENV ? '.' + process.env.NODE_ENV : false;
+	var filename = path.join(workingDir(), 'polylith.json');
+	var envFilename = path.join(workingDir(), `polylith${envExt}.json`)
+	var config = await readOneConfig(filename);
+	var envConfig = {};
+
+	if (envExt) {
+		envConfig = await readOneConfig(envFilename);
+	}
+
+	return {...config, ...envConfig}
 }
 
 /**
@@ -136,7 +156,7 @@ async function writeConfig(config) {
  * Call this method to get the current options. Order of precedence is default,
  * polylith.json and command line
  */
-async function setOptions() {
+async function getOptions() {
 	var config = await readConfig();
 
 	clOptions = {...clOptions, ...config};
@@ -219,19 +239,19 @@ function camelCase(name) {
 }
 
 /**
- * Call this method to normalize the name so that each individual part is lower
- * case and separated by '_'. The name is assumed to be either separated with
- * spaces, -, or _; or is in camel case or pascal case.
+ * Call this method to normalize the name so that it is in snake case: each
+ * individual part is lower case and separated by '_'. The passed name is
+ * assumed to be either separated with one of [' ', '-', '_'] or is in camel
+ * case or pascal case.
  *
  * @param {String} name the name to normalize
  *
- * @returns {String} the normalized string which will be all lowercase with each
-		part separated with '_';
+ * @returns {String} the normalized string which will be in snake case;
  */
 function normalizeCase(name) {
 	if (!name) return;
 
-	// default to pascal case, because we will break it into pieces based on
+	// start with pascal case, because we will break it into pieces based on
 	// each part starting with an upercase letter.
 	name = pascalCase(name);
 
@@ -373,8 +393,8 @@ function checkLocalPolylith() {
 /**
  * Call this function to execure the command from the command line
  */
-async function run() {
-	await setOptions();
+async function execute() {
+	await getOptions();
 	var config = await readConfig();
 
 	if (!verifyParams() || argv.help || argv.h) {
@@ -418,7 +438,15 @@ async function run() {
 			await test(params[1], config, clOptions)
 			break;
 		}
+
+		case 'run': {
+			await run(params[1], config, clOptions)
+		}
+
+		case 'serve' : {
+			await serve(params[1], config, clOptions)
+		}
 	}
 }
 
-await run();
+await execute();

@@ -1,6 +1,6 @@
 {
   "name": "polylith",
-  "version": "0.1.31",
+  "version": "0.1.40",
   "description": "cli for the polylith environment",
   "bin": {
     "polylith": "bin/polylith.js"

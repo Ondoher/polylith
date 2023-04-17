@@ -15,6 +15,7 @@ polylith watch          builds and runs the specified app in dev mode. If no app
                         is specified it will run the default app. Dev mode will
                         monitor source for file changes and then rebuild and
                         reload the page with those changes.
+polylith serve          runs the currently built application
 
 Parameters:
   app                   for build, clear, run and dev, if this parameter is not
@@ -34,8 +35,8 @@ Options:
                         application in a subdirectory of src, and set src/<app>
                         as the source root. It will also set the destination to
                         be dist/<app>.
-  --all, -a             when used with build, clear, run or dev this will act on
-                        all apps.
+  --all, -a             when used with build, serve, clear, run or dev this will
+                        act on all apps.
   --help, -h            display this file
   --react, -r           create a new react app, or setup the initial project as
                         a react app. This is the default. use --react false to

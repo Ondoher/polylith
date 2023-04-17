@@ -106,7 +106,6 @@ async function getApp(spec, options) {
 	return app;
 }
 
-
 async function walkApps(name, config, options, cb) {
 	var specs = getAppSpecs(name, config, options);
 	var apps = [];
@@ -116,14 +115,11 @@ async function walkApps(name, config, options, cb) {
 		let app = await getApp(spec, options);
 		if (!app) continue;
 
-		if (await cb(app)) apps.push(app)
+		if (!cb || await cb(app)) apps.push(app)
 	}
 
 	return apps;
-
 }
-
-
 
 /**
  * Call this method to build all the applications specified on the command line
@@ -144,10 +140,9 @@ export async function build(name, config, options, watch) {
 	return apps;
 }
 
-
-async function server(apps, options) {
-	var server = new PolylithServer({apps: apps}, options.dest);
-	await server.create(apps);
+async function server(options) {
+	var server = new PolylithServer(options, options.dest);
+	await server.create(options.apps);
 	await server.start(options.port || '8081');
 }
 
@@ -158,7 +153,19 @@ export async function watch(name, config, options) {
 		await app.watch();
 	}
 
-	await server(apps, options);
+	await server({...options, apps: apps});
+}
+
+export async function run(name, config, options) {
+	var apps = await build(name, config, options, false);
+
+	await server({...options, apps: apps});
+}
+
+export async function serve(name, config, options) {
+	var apps = await walkApps(name, config, options);
+
+	await server({...options, apps: apps});
 }
 
 export async function test(name, config, options) {

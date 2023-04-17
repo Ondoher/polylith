@@ -11,8 +11,8 @@ import {cwd} from 'node:process';
  * @returns {String} the new path
  */
 export function forceToPosix(src) {
-	src = src.replace('file:', '');
-	src = src.replace('///', '');
+	src = src.replace('file:', '/');
+	src = src.replace('///', '/');
 	src = src.replace(/.*?:/, '');
 	src = src.replace(/\\/g, '/');
 
@@ -27,7 +27,6 @@ export function fileToPath(filename) {
     filename = forceToPosix(filename);
     return path.dirname(filename);
 }
-
 
 /**
  * call this function to check if the given file exists
