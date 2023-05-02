@@ -31,7 +31,7 @@ export class PolylithServer {
 		var roots = !Array.isArray(this.staticRoot) ? [this.staticRoot] : this.staticRoot;
 
 		roots.forEach(function(root) {
-			this.app.use(express.static(path.join(this.root, root)));
+			this.app.use(express.static(path.join(this.root, root), {fallthrough: true}));
 		}, this)
 	}
 
@@ -65,8 +65,8 @@ export class PolylithServer {
 			.use(express.text())
 			.use(express.raw())
 
-			await this.setAppRoutes(apps);
 			this.serve();
+			await this.setAppRoutes(apps);
 
 		if (httpsOptions)
 			this.server = https.createServer(httpsOptions, this.app);

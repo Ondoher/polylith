@@ -10,8 +10,8 @@ import {readFile, writeFile, stat} from 'node:fs/promises';
  * @returns {String} the new path
  */
 export function forceToPosix(src) {
-	src = src.replace('file:', '');
-	src = src.replace('///', '');
+	src = src.replace('file:', '/');
+	src = src.replace('///', '/');
 	src = src.replace(/.*?:/, '');
 	src = src.replace(/\\/g, '/');
 

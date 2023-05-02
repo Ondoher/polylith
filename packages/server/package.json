@@ -1,14 +1,14 @@
 {
   "name": "@polylith/server",
-  "version": "0.1.12",
+  "version": "0.1.17",
   "description": "This is the basic polylith http/https server. It is build on top of Express.js",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/Ondoher/polylith",
-    "directory": "packages/server/server"
+    "directory": "packages/server"
   },
-"scripts": {
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },

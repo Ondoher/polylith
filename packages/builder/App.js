@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {readFile, writeFile, stat} from 'node:fs/promises';
+import cc from "@ondohers/console-colors";
 import express from 'express';
 import * as rollup from 'rollup';
 import { babel } from '@rollup/plugin-babel';
@@ -17,6 +18,7 @@ import features from './plugin-features.js';
 import resources from "./plugin-copy-resources.js";
 import jsconfig from "./plugin-jsconfig.js";
 import loadConfigs from "./plugin-config.js";
+import watchLog from "./plugin-watch.js";
 
 import {forceToPosix, fileExists} from './utils.js'
 import ConfigFeature from './ConfigFeature.js';
@@ -121,12 +123,17 @@ export default class App {
 		try {
 			let module = await import(this.modulePath)
 			let router = module.default;
-			await router(appRouter);
+			await router(appRouter, this);
 			return true;
 		} catch(e) {
-			console.error('error while building router', this.modulePath);
+			console.error(cc.set('fg_red;, error while building router'), this.modulePath);
 			console.log(e);
 		}
+	}
+
+	async sendIndex(res) {
+		var indexPath = path.posix.join(this.root, this.htmlTemplate.destination);
+		res.sendFile(indexPath);
 	}
 
 	/**
@@ -459,7 +466,7 @@ export default class App {
 				let feature = module.default;
 				await feature.build(this);
 			} catch(e) {
-				console.error('error while building feature', root);
+				console.error(cc.set('fg_red', 'error while building feature'), root);
 				console.log(e);
 			}
 
@@ -699,7 +706,8 @@ export default class App {
 				destination: this.htmlTemplate.destination,
 				templateVars: this.templateVariables,
 			}),
-			resources(this.name, this.files, false)
+			resources(this.name, this.files, false),
+			watchLog(),
 		];
 
 		if (this.liveReload) {
@@ -803,21 +811,20 @@ export default class App {
 
 		const watcher = rollup.watch(watchConfig);
 		watcher.on('event', function(event) {
-			console.log(event.code);
 			if (event.result) {
 				event.result.close();
 			}
 
 			if (event.code === 'ERROR') {
-				console.error(event.error)
+				console.error(cc.set('fg_red', event.error))
 			}
 
 			if (event.code === 'BUNDLE_START') {
-//				console.log(event);
+				console.log(cc.set('fg_green', 'building...'));
 			}
 
 			if (event.code === 'BUNDLE_END') {
-//				console.log(event);
+				console.log(cc.set('fg_green', 'build complete'))
 			}
 		}.bind(this));
 		return true;

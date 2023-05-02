@@ -1,6 +1,6 @@
 {
   "name": "polylith",
-  "version": "0.1.41",
+  "version": "0.1.51",
   "description": "cli for the polylith environment",
   "bin": {
     "polylith": "bin/polylith.js"
@@ -16,8 +16,8 @@
   "author": "Glenn Anderson",
   "license": "MIT",
   "dependencies": {
-    "@polylith/builder": "^0.1.0",
-    "@polylith/server": "^0.1.0",
+    "@polylith/builder": "0.2.9",
+    "@polylith/server": "0.1.17",
     "fs-extra": "^10.1.0",
     "minimist": "^1.2.7"
   },
