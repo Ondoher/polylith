@@ -6,8 +6,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import cookieSession from 'cookie-session';
 import compression from 'compression';
+import cc from "@ondohers/console-colors";
 import {workingDir} from './utils.js';
-
 
 export class PolylithServer {
 	constructor(options, dest) {
@@ -20,7 +20,7 @@ export class PolylithServer {
 		for (let app of apps) {
 			var router = express.Router({mergeParams: true});
 
-			var success = await app.router(router);
+			var success = await app.router(this.app, router);
 			if (success) {
 				this.app.use(app.getRouterRoot(), router);
 			}
@@ -29,9 +29,11 @@ export class PolylithServer {
 
 	serve() {
 		var roots = !Array.isArray(this.staticRoot) ? [this.staticRoot] : this.staticRoot;
+		var staticOptions = {fallthrough: true}
+		if (this.options.staticOptions) staticOptions = {...staticOptions, ...this.options.staticOptions}
 
 		roots.forEach(function(root) {
-			this.app.use(express.static(path.join(this.root, root), {fallthrough: true}));
+			this.app.use(express.static(path.join(this.root, root), staticOptions));
 		}, this)
 	}
 
@@ -75,6 +77,9 @@ export class PolylithServer {
 	}
 
 	start(port) {
+		this.server.on('listening', function() {
+			console.log(`Polylith server running on port ${cc.set('fg_green', port)}`)
+		})
 		this.server.listen(port);
 	}
 }

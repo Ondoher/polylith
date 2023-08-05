@@ -1,6 +1,6 @@
 {
   "name": "@polylith/builder",
-  "version": "0.2.9",
+  "version": "0.2.24",
   "description": "The polylith builder",
   "main": "index.js",
   "type": "module",
@@ -17,17 +17,20 @@
   "license": "MIT",
   "dependencies": {
     "@babel/preset-env": "^7.16.11",
-    "@babel/preset-react": "^7.16.7",
+    "@babel/preset-react": "^7.22.5",
     "@ondohers/console-colors": "^0.1.1",
+    "@polylith/config-store": "0.1.2",
+    "@polylith/core": "^0.1.9",
     "@rollup/plugin-babel": "^5.3.0",
     "@rollup/plugin-commonjs": "^24.0.0",
     "@rollup/plugin-json": "^5.0.2",
-    "@rollup/plugin-node-resolve": "^13.0.5",
+    "@rollup/plugin-node-resolve": "^13.3.0",
     "@svgr/rollup": "^6.5.1",
     "babel": "^6.23.0",
     "escape-string-regexp": "^5.0.0",
+    "express": "^4.18.2",
     "fast-glob": "^3.2.12",
-    "fs-extra": "^10.0.0",
+    "fs-extra": "^10.1.0",
     "less": "^4.1.2",
     "node-console-colors": "^1.1.5",
     "rollup": "^2.58.0",
@@ -36,6 +39,7 @@
     "rollup-plugin-livereload": "^2.0.5",
     "rollup-plugin-polyfill-node": "^0.11.0",
     "rollup-plugin-styles": "^4.0.0",
+    "rollup-plugin-terser": "^7.0.2",
     "sass": "^1.43.4"
   }
 }

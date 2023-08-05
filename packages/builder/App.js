@@ -19,7 +19,7 @@ import resources from "./plugin-copy-resources.js";
 import jsconfig from "./plugin-jsconfig.js";
 import loadConfigs from "./plugin-config.js";
 import watchLog from "./plugin-watch.js";
-
+import { terser } from "rollup-plugin-terser";
 import {forceToPosix, fileExists} from './utils.js'
 import ConfigFeature from './ConfigFeature.js';
 import Files from './Files.js';
@@ -32,7 +32,8 @@ export default class App {
 	 * Construct the app object.
 	 *
 	 * @param {String} name a name for the app
-	 * @param {Object} config
+	 * @param {Object} config polylith configuration file
+	 * @param {Object} setup
 	 * @property {String} root the full path to the root directory of the project.
 	 * 		All other paths will be relative to this path.
 	 * @proprty {String} index the relative path to the main source file from the
@@ -45,9 +46,11 @@ export default class App {
 	 * @property {String} testDest the relative path to the testing destination
 	 * 	folder from the root for rolled up files
 	 */
-	constructor(name, config) {
-		var {root, index, dest, spec, testDest=''} = config;
+	constructor(name, config, setup) {
+		var {root, index, dest, spec, testDest=''} = setup;
 
+		this.polylithConfig = config;
+		this.setup = setup;
 		root = forceToPosix(root);
 		this.root = root;
 		this.routerRoot = '/' + name;
@@ -117,18 +120,22 @@ export default class App {
 	 * @param {express.Router} appRouter
 	 * @returns {Promise}
 	 */
-	async router(appRouter) {
+	async router(express, appRouter) {
 		if (!this.modulePath) return;
 
 		try {
 			let module = await import(this.modulePath)
 			let router = module.default;
-			await router(appRouter, this);
+			await router(express, appRouter, this);
 			return true;
 		} catch(e) {
 			console.error(cc.set('fg_red;, error while building router'), this.modulePath);
 			console.log(e);
 		}
+	}
+
+	getIndexFile() {
+		return path.posix.join(this.root, this.htmlTemplate.destination);
 	}
 
 	async sendIndex(res) {
@@ -161,9 +168,10 @@ export default class App {
 
 		// also include this process stuff, React seems to think it will always
 		// be there. Consider moving this into a plugin/feature of some sort
+		var env = process.env.NODE_ENV || 'dev';
 		var codeBlock =
 	`<script>
-		window.process = {env: {NODE_ENV: 'dev'}};
+		window.process = {env: {NODE_ENV: "${env}"}};
 `;
 
 		if (names.length !== 0) {
@@ -172,7 +180,7 @@ export default class App {
 			}, this);
 
 			codeBlock +=
-`		window.process = {env: {NODE_ENV: 'dev'}};
+`
 		window.${this.ns} = {
 			${members.join('\n')}
 		}
@@ -197,6 +205,23 @@ export default class App {
 		if (path[0] === '/') path = path.slice(1);
 
 		return './' + path;
+	}
+
+	/**
+	 * Call this method with to set specific options for live reload
+	 *
+	 * @param {Object} on set to true to turn on destination watching
+	 * @property {Number} port set this to a port for as livereload port,
+	 * 	defaults to 35800
+	 * @property {("http"|"https")} protocol the protocol to use for the
+	 * 	livereload websocket. default to 'http'
+	 * @property hostname the hostname for the livereload websocket. defaults to
+	 * 	'localhost;
+	 * @property {Object} https if this has a value, it will be set as the http
+	 * 	value in the livereload options
+	 */
+	setLiveReloadOptions(options) {
+		this.liveReloadOptions = options;
 	}
 
 	/**
@@ -539,7 +564,7 @@ export default class App {
 	 */
 	async findLoadableCss(loadable) {
 		if (loadable.css) {
-			var files = new Files(this.sourcePath, this.destPath)
+			var files = new Files(this.sourcePath, this.destPath, this.testPath)
 			loadable.css.forEach(function(spec) {
 				files.addResourceSpec(loadable.root, spec);
 			}, this)
@@ -568,7 +593,7 @@ export default class App {
 		await this.findMainCss();
 
 		this.cssFiles.forEach(function(uri) {
-			cssTags += `		<link rel="stylesheet" href="${uri}"></link>`
+			cssTags += `		<link rel="stylesheet" href="${uri}"></link>\n`
 		}, this);
 
 		return cssTags;
@@ -612,7 +637,8 @@ export default class App {
 			loader(this.loadables),
 			features(this.featureIndexes),
 			styles(),
-			resources(this.name, this.files, true)
+			resources(this.name, this.files, true),
+			watchLog(),
 		];
 
 		var config = {
@@ -663,6 +689,7 @@ export default class App {
 
 	async generateBuildConfiguration() {
 		var input = [this.fullIndexPath];
+		var env = process.env.NODE_ENV || 'dev';
 
 		// using a for loop because we are making an async call
 		for (let loadable of this.loadables) {
@@ -674,6 +701,7 @@ export default class App {
 		var manualChunks = this.getManualChunks();
 		var mainCss = await this.buildMainCss();
 		var codeVariables = this.getCodeVariablesValue();
+		var sourceMap = !this.polylithConfig.minify;
 
 		this.templateVariables['mainCss'] = mainCss;
 		this.templateVariables['codeVariables'] = codeVariables;
@@ -710,10 +738,26 @@ export default class App {
 			watchLog(),
 		];
 
+		if (this.polylithConfig.minify) plugins.push(terser());
+
 		if (this.liveReload) {
-			plugins.push(
-				livereload(this.destPath)
-			)
+			let plugin;
+
+			// rollup-plugin-livereload always bases the protocol on the
+			// webpage url. This is bad, here we override it
+			if (this.liveReloadOptions) {
+				let port = this.liveReloadOptions.port || 35800;
+				let protocol = this.liveReloadOptions.protocol || 'http';
+				let hostname = this.liveReloadOptions.hostname || 'localhost';
+				let https = this.liveReloadOptions.https || null;
+				let url = `${protocol}://${hostname}:${port}/livereload.js?snipver=1&port=${port}`;
+
+				plugin = livereload({watch: this.destPath, https: https, clientUrl: url, port: port})
+			} else  {
+				plugin = livereload(this.destPath)
+			}
+
+			plugins.push(plugin)
 		}
 
 		var config = {
@@ -723,7 +767,7 @@ export default class App {
 			},
 			output : {
 				output : {
-					sourcemap: true,
+					sourcemap: sourceMap,
 					dir : this.destPath,
 					format: 'es',
 					assetFileNames: function(chunkInfo) {
@@ -770,11 +814,11 @@ export default class App {
 		}
 
 		await this.testFeatures();
-		this.config = await this.generateTestConfiguration();
+		this.spec = await this.generateTestConfiguration();
 
-		const bundle = await rollup.rollup(this.config.input);
-		await bundle.generate(this.config.output);
-		await bundle.write(this.config.output);
+		const bundle = await rollup.rollup(this.spec.input);
+		await bundle.generate(this.spec.output);
+		await bundle.write(this.spec.output);
 		await bundle.close();
 
 		return true;
@@ -788,11 +832,11 @@ export default class App {
 	async build() {
 		this.testing = false;
 		await this.buildFeatures();
-		this.config = await this.generateBuildConfiguration();
+		this.spec = await this.generateBuildConfiguration();
 
-		const bundle = await rollup.rollup(this.config.input);
-		await bundle.generate(this.config.output);
-		await bundle.write(this.config.output);
+		const bundle = await rollup.rollup(this.spec.input);
+		await bundle.generate(this.spec.output);
+		await bundle.write(this.spec.output);
 		await bundle.close();
 
 		return true;
@@ -804,9 +848,9 @@ export default class App {
 	 */
 	watch() {
 		var watchConfig  = {
-			...this.config.input,
-			output: [this.config.output.output],
-			...this.config.watch,
+			...this.spec.input,
+			output: [this.spec.output.output],
+			...this.spec.watch,
 		}
 
 		const watcher = rollup.watch(watchConfig);
@@ -820,11 +864,11 @@ export default class App {
 			}
 
 			if (event.code === 'BUNDLE_START') {
-				console.log(cc.set('fg_green', 'building...'));
+				console.log(cc.set('fg_blue', 'building...'));
 			}
 
 			if (event.code === 'BUNDLE_END') {
-				console.log(cc.set('fg_green', 'build complete'))
+				console.log(cc.set('fg_blue', 'build complete'))
 			}
 		}.bind(this));
 		return true;

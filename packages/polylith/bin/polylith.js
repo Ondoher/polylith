@@ -24,7 +24,10 @@ var clOptions = {
 	index: true,
 	react: true,
 	watch: false,
+	serve: true,
 }
+
+var polylithConfig = {};
 
 var thisDir = path.dirname(forceToPosix(import.meta.url));
 
@@ -69,7 +72,7 @@ function checkBoolean(val) {
 function getOption(name, short) {
 	if (argv[name] !== undefined) return checkBoolean(argv[name]);
 	if (argv[short] != undefined) return checkBoolean(argv[short]);
-	return clOptions[name];
+	return polylithConfig[name];
 }
 
 /**
@@ -159,20 +162,21 @@ async function writeConfig(config) {
 async function getOptions() {
 	var config = await readConfig();
 
-	clOptions = {...clOptions, ...config};
+	polylithConfig = {...clOptions, ...config};
 
-	clOptions.multiple = getOption('multiple', 'm');
-	clOptions.dest = getOption('dest', 'd');
-	clOptions.src = getOption('src', 's')
-	clOptions.builds = getOption('builds', 'b')
-	clOptions.all = getOption('all', 'a')
-	clOptions.code = getOption('code', 'c')
-	clOptions.index = getOption('index', 'i')
-	clOptions.react = getOption('react', 'r')
-	clOptions.watch = getOption('watch', 'w')
+	polylithConfig.multiple = getOption('multiple', 'm');
+	polylithConfig.dest = getOption('dest', 'd');
+	polylithConfig.src = getOption('src', 's')
+	polylithConfig.builds = getOption('builds', 'b')
+	polylithConfig.all = getOption('all', 'a')
+	polylithConfig.code = getOption('code', 'c')
+	polylithConfig.index = getOption('index', 'i')
+	polylithConfig.react = getOption('react', 'r')
+	polylithConfig.watch = getOption('watch', 'w')
+	polylithConfig.serve = getOption('serve', 'v')
 
 	// force multiple if we already have more than one app;
-	if (config.apps && config.apps.length > 1) clOptions.multiple = true;
+	if (config.apps && config.apps.length > 1) polylithConfig.multiple = true;
 }
 
 /**
@@ -290,7 +294,7 @@ function getNames(params) {
 	var app = '';
 	var name = '';
 
-	if (clOptions.multiple && !clOptions.all) {
+	if (polylithConfig.multiple && !polylithConfig.all) {
 		app = params[1];
 		name = params[2];
 	} else {
@@ -318,11 +322,11 @@ function getNames(params) {
 		names.name = name;
 	}
 
-	names.dest = clOptions.dest;
-	names.builds = clOptions.builds;
-	names.src = clOptions.src;
-	names.react = clOptions.react;
-	names.path = clOptions.multiple ? '/' + app : '';
+	names.dest = polylithConfig.dest;
+	names.builds = polylithConfig.builds;
+	names.src = polylithConfig.src;
+	names.react = polylithConfig.react;
+	names.path = polylithConfig.multiple ? '/' + app : '';
 
 	return names;
 }
@@ -331,6 +335,7 @@ function getNames(params) {
  * Call this method to run npm install
  */
 async function runInstall() {
+	console.log('installing npm depenencies')
 	await exec('npm install');
 }
 
@@ -341,8 +346,8 @@ async function runInstall() {
  * @returns {Boolean} true if the number of parameters is correct
  */
 function verifyParams() {
-	var multiple = clOptions.multiple;
-	var all = clOptions.all;
+	var multiple = polylithConfig.multiple;
+	var all = polylithConfig.all;
 	var command = params[0];
 
 	if (!command) return false;
@@ -381,7 +386,7 @@ async function addAppJson(names, options) {
 }
 
 /**
- * Call this method to test that the instance of polylith being run is  local to
+ * Call this method to test that the instance of polylith being run is local to
  * the current project
  *
  * @returns {Boolean} true if the instance is local
@@ -391,11 +396,10 @@ function checkLocalPolylith() {
 }
 
 /**
- * Call this function to execure the command from the command line
+ * Call this function to execute the command from the command line
  */
 async function execute() {
 	await getOptions();
-	var config = await readConfig();
 
 	if (!verifyParams() || argv.help || argv.h) {
 		await outputInstructions();
@@ -406,45 +410,45 @@ async function execute() {
 	{
 		case 'init': {
 			let names = getNames(params);
-			await processManifest('install', names, clOptions);
+			await processManifest('install', names, polylithConfig);
 			await runInstall();
 			break;
 		}
 
 		case 'app': {
 			let names = getNames(params);
-			await processManifest('app', names, clOptions);
-			await addAppJson(names, clOptions);
+			await processManifest('app', names, polylithConfig);
+			await addAppJson(names, polylithConfig);
 			break;
 		}
 
 		case 'feature': {
 			let names = getNames(params);
-			processManifest('feature', names, clOptions);
+			processManifest('feature', names, polylithConfig);
 			break;
 		}
 
 		case 'build': {
-			await build(params[1], config, clOptions, false);
+			await build(params[1], polylithConfig, false);
 			break;
 		}
 
 		case 'watch': {
-			await watch(params[1], config, clOptions)
+			await watch(params[1], polylithConfig)
 			break;
 		}
 
 		case 'test': {
-			await test(params[1], config, clOptions)
+			await test(params[1], polylithConfig)
 			break;
 		}
 
 		case 'run': {
-			await run(params[1], config, clOptions)
+			await run(params[1], polylithConfig)
 		}
 
 		case 'serve' : {
-			await serve(params[1], config, clOptions)
+			await serve(params[1], polylithConfig)
 		}
 	}
 }

@@ -6,7 +6,13 @@ import {forceToPosix} from './utils.js'
  * This class is used to build an application from a configuration file.
  */
 export default class ConfigApp extends App {
-	constructor (config, root) {
+	/**
+	 *
+	 * @param {*} config
+	 * @param {*} options
+	 * @param {*} root
+	 */
+	constructor (options, config, root) {
 		root = forceToPosix(root);
 		var name = config.name || 'unnamed';
 		var index = config.index || 'src/index.js';
@@ -14,8 +20,7 @@ export default class ConfigApp extends App {
 		var spec = config.spec;
 		var testDest = config.testDest;
 
-		super(name, {root, index, dest, spec, testDest});
-		this.config = config;
+		super(name, options, {root, index, dest, spec, testDest});
 
 		if (!config.template || !config.template.source) throw new Error('html source not defined in config file');
 		var source = config.template.source;
@@ -29,8 +34,8 @@ export default class ConfigApp extends App {
 			}, this)
 		}
 
-		if (this.config.features) {
-			this.config.features.forEach(function(feature) {
+		if (config.features) {
+			config.features.forEach(function(feature) {
 				this.addFeature(feature);
 			}.bind(this))
 		}
@@ -52,6 +57,10 @@ export default class ConfigApp extends App {
 
 		if (config.router) {
 			this.setRouterModule(config.router);
+		}
+
+		if (config.liveReload) {
+			this.setLiveReloadOptions(config.liveReload);
 		}
 	}
 }

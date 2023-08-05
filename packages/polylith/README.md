@@ -9,21 +9,21 @@ will be explained below.
 ## Rollup vs Webpack
 
 Because of the specific requirements of building the application,
-[Rollup](https://www.npmjs.com/package/rollup) was chosen as the core of the
+[Rollup](https://www.npmjs.com/package/rollup) is used as the core of the
 build system rather than Webpack. These requirements include the creation of
-synthetic modules and the automatic creation of chunks based on
-dependencies shared between files that can be loaded dynamically. It also
-does tree shaking to remove unused code.
+synthetic modules and the automatic creation of chunks based on dependencies
+shared between files that can be loaded dynamically. It also does tree shaking
+to remove unused code.
 
-The configuration of a build is very high-level, focused on how the
-application is constructed more than the technology it uses. A build can be
-specified as either a .json file, or though code.
+The configuration of a build is high-level, focused on how the application is
+constructed rather than the technology used. A build can be specified as either
+a .json file, or though code.
 
 ## Command Line Interface
 
-There is a command line interface for building and running the application.
-This can be installed globally to be run from the command line, and locally
-to be accessed through npm scripts. To access this from the command line
+There is a command line interface for building and running a polylith
+application. This can be installed globally to be run from the command line, and
+locally to be accessed through npm scripts. To access this from the command line
 install the module polylith globally, like this:
 
 `npm install -g polylith`
@@ -61,9 +61,9 @@ should not need to be updated.
 
 ## Services
 
-Services are the core of the new architecture, and the code necessary to
-implement and use them is defined in the module @polylith/core. This module
-exports four things: Service, Registry, registry, makeEventable.
+Services are the core of polylith, and the code necessary to implement and use
+them is defined in the module @polylith/core. This module exports four things:
+Service, Registry, registry, makeEventable.
 
 ### ServiceObject
 
@@ -71,7 +71,7 @@ An instance of ServiceObject is the external representation of a service as
 retrieved from the registry. An object of this type is a different than the
 implementation of the service, which extends the class Service.
 ServiceObject is not exported from the core and cannot be directly created.
-The base of a ServiceObject is an EventBus. Use the methods, listen,
+A ServiceObject is at its heart an EventBus. Use the methods, listen,
 unlisten and firefor handling events from the service object. In principle,
 all methods on a service are implemented as events, although for
 performance reasons, under most circumstances, they will also be added as

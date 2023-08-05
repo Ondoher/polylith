@@ -1,7 +1,7 @@
 {
   "name": "@polylith/core",
   "access": "public",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Core of the client-side polylith framework",
   "main": "index.js",
   "repository": {
@@ -9,7 +9,7 @@
     "url": "https://github.com/Ondoher/polylith",
     "directory": "packages/core"
   },
-"scripts": {
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Glenn Anderson",

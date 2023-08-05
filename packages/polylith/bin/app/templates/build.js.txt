@@ -12,12 +12,6 @@ class {App}App extends App {
 		this.setHtmlTemplate('{path}/{src}/index.html', '{dest}{path}/index.html');
 		this.addResources('',  [
 			{
-				"dest": "styles",
-				"cwd": "styles",
-				"glob": "**/*.css",
-				"keepNest": true
-			},
-			{
 				"dest": "images",
 				"cwd": "images",
 				"glob": "**/*.{png,jpg,gif,svn}",

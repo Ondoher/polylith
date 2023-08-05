@@ -1,6 +1,6 @@
 {
   "name": "polylith",
-  "version": "0.1.51",
+  "version": "0.1.78",
   "description": "cli for the polylith environment",
   "bin": {
     "polylith": "bin/polylith.js"
@@ -10,14 +10,15 @@
     "url": "https://github.com/Ondoher/polylith",
     "directory": "packages/polylith"
   },
+  "homepage": "https://github.com/Ondoher/polylith#readme",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Glenn Anderson",
   "license": "MIT",
   "dependencies": {
-    "@polylith/builder": "0.2.9",
-    "@polylith/server": "0.1.17",
+    "@polylith/builder": "0.2.24",
+    "@polylith/server": "0.1.25",
     "fs-extra": "^10.1.0",
     "minimist": "^1.2.7"
   },

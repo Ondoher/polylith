@@ -9,12 +9,6 @@
 	},
 	"resources": [
 		{
-			"dest": "styles",
-			"cwd": "styles",
-			"glob": "**/*.css",
-			"keepNest": true
-		},
-		{
 			"dest": "images",
 			"cwd": "images",
 			"glob": "**/*.{png,jpg,gif,svn}",

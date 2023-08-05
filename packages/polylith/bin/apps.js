@@ -25,17 +25,15 @@ function findDefaultApp(config) {
  *
  * @param {String} name the app name specified from the command line
  * @param {Object} config the current polylith configuration object
- * @param {Object} options the options from the command line
  *
  * @returns {Array} the list of object specs to act on
  */
-export function getAppSpecs(name, config, options) {
+export function getAppSpecs(name, config) {
 	var specs = [];
 	var foundSpec;
-	var apps = [];
 	var defaultApp = findDefaultApp(config);
 
-	if (options.all) {
+	if (config.all) {
 		specs = config.apps;
 	} else if (!name) {
 		if (!defaultApp) {
@@ -76,26 +74,26 @@ async function readJson(filename) {
 /**
  * Call this method to get the App object from the given app spec.
  *
- * @param {Object} spec the application spec from the poilylith configuration
+ * @param {Object} spec the application spec from the polylith configuration
  * 		object
- * @param {Object} options the command line options
+ * @param {Object} config the polylith configuration object
  *
  * @returns {App|Boolean} the application object, false if there ws an error
  */
-async function getApp(spec, options) {
-	var buildPath = path.join(workingDir(), options.builds);
+async function getApp(spec, config) {
+	var buildPath = path.join(workingDir(), config.builds);
 	var filename = path.join(buildPath, spec.filename);
 	var app;
 
 	if (!spec.code) {
 		var config = await(readJson(filename));
 		if (!config) return false;
-		app = new ConfigApp(config, workingDir());
+		app = new ConfigApp(spec, config, workingDir());
 	} else {
 		try {
 			var res = await import(filename);
 			if (!res.default) throw new Error('no default in application module')
-			app = res.default;
+			app = new res.default(config);
 			if (!app.build && app.watch) throw new Error('application file is not an application module');
 		} catch(e) {
 			console.warn(`error loading app ${spec.name}`);
@@ -106,13 +104,13 @@ async function getApp(spec, options) {
 	return app;
 }
 
-async function walkApps(name, config, options, cb) {
-	var specs = getAppSpecs(name, config, options);
+async function walkApps(name, config, cb) {
+	var specs = getAppSpecs(name, config);
 	var apps = [];
 
 	// using for loop because we are making async calls
 	for (let spec of specs) {
-		let app = await getApp(spec, options);
+		let app = await getApp(spec, config);
 		if (!app) continue;
 
 		if (!cb || await cb(app)) apps.push(app)
@@ -125,14 +123,13 @@ async function walkApps(name, config, options, cb) {
  * Call this method to build all the applications specified on the command line
  *
  * @param {String} name the name of the application from the command line
- * @param {Object} config the polylith config object
- * @param {Object} options the options from the command line
+ * @param {Object} config the polylith config
  * @param {Boolean} watch true if building for watch mode
  *
  * @returns {Promise.<Array.<App>>} the list of built apps
  */
-export async function build(name, config, options, watch) {
-	var apps = await walkApps(name, config, options, async function(app) {
+export async function build(name, config, watch) {
+	var apps = await walkApps(name, config, async function(app) {
 		app.setLiveReload(watch);
 		return await app.build();
 	})
@@ -140,45 +137,45 @@ export async function build(name, config, options, watch) {
 	return apps;
 }
 
-async function server(options) {
-	var server = new PolylithServer(options, options.dest);
-	await server.create(options.apps);
-	await server.start(options.port || '8081');
+async function server(config) {
+	var server = new PolylithServer(config, config.dest);
+	await server.create(config.apps);
+	server.start(config.port || '8081');
 }
 
-export async function watch(name, config, options) {
-	var apps = await build(name, config, options, true);
+export async function watch(name, config) {
+	var apps = await build(name, config, true);
 
 	for (let app of apps) {
 		await app.watch();
 	}
 
-	await server({...options, apps: apps});
+	if (config.serve)
+		await server({...config, apps: apps});
 }
 
-export async function run(name, config, options) {
-	var apps = await build(name, config, options, false);
+export async function run(name, config) {
+	var apps = await build(name, config, false);
 
-	await server({...options, apps: apps});
+	await server({...config, apps: apps});
 }
 
-export async function serve(name, config, options) {
-	var apps = await walkApps(name, config, options);
+export async function serve(name, config) {
+	var apps = await walkApps(name, config);
 
-	await server({...options, apps: apps});
+	await server({...config, apps: apps});
 }
 
-export async function test(name, config, options) {
-	var apps = await walkApps(name, config, options, async function(app) {
+export async function test(name, config) {
+	var apps = await walkApps(name, config, async function(app) {
 		return await app.test();
 	})
 
-	if (options.watch) {
+	if (config.watch) {
 		for (let app of apps) {
 			app.watch();
 		}
 	}
 
 	return apps;
-
 }

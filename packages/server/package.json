@@ -1,6 +1,6 @@
 {
   "name": "@polylith/server",
-  "version": "0.1.17",
+  "version": "0.1.25",
   "description": "This is the basic polylith http/https server. It is build on top of Express.js",
   "main": "index.js",
   "repository": {
@@ -15,6 +15,7 @@
   "author": "Glenn Anderson",
   "license": "MIT",
   "dependencies": {
+    "@ondohers/console-colors": "^0.1.1",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "cookie-session": "^2.0.0",

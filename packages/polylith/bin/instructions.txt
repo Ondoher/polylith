@@ -41,3 +41,5 @@ Options:
   --react, -r           create a new react app, or setup the initial project as
                         a react app. This is the default. use --react false to
                         turn it off
+  --serve, -v           in watch mode, also serve the application, defaults to
+                        true

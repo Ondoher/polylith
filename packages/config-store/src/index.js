@@ -22,6 +22,10 @@ function get(key) {
 	return result;
 }
 
+if (window.runtimeConfig) {
+	add(window.runtimeConfig)
+}
+
 export default {
 	add: add,
 	get: get,

@@ -5,7 +5,7 @@ export default function watch() {
 		name: 'watch-log',
 
 		watchChange(id, type) {
-			console.log(`${cc.set('fg_green', type.event)} of file ${id}`)
+			console.log(`${cc.set('fg_green', type.event)} of file ${cc.set('fg_white', id)}`)
 			return null;
 		}
 	};

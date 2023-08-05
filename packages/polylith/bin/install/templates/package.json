@@ -6,11 +6,10 @@
     "@polylith/config-store": "^0.1.0",
     "@polylith/core": "^0.1.0",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
-  },
-  "devDependencies": {
+    "react-dom": "^17.0.2",
     "@polylith/builder": "^0.1.0",
-    "@polylith/server": "^0.1.0"
+    "@polylith/server": "^0.1.0",
+    "polylith": "^0.1.0"
   },
   "type": "module"
 }

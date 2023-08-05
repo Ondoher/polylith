@@ -25,7 +25,7 @@ export class Service {
 			if (this[name]) {
 				methods[name] = this[name].bind(this);
 			} else {
-				console.warn('method', name, 'not implemented on service', this.name ? this.name : '<unnamed service>')
+				console.warn('method', name, 'not implemented on service', this.serviceName ? this.serviceName : '<unnamed service>')
 			}
 		}, this);
 
