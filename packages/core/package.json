@@ -1,7 +1,7 @@
 {
   "name": "@polylith/core",
   "access": "public",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "description": "Core of the client-side polylith framework",
   "main": "index.js",
   "repository": {

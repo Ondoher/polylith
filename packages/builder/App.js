@@ -129,9 +129,18 @@ export default class App {
 			await router(express, appRouter, this);
 			return true;
 		} catch(e) {
-			console.error(cc.set('fg_red;, error while building router'), this.modulePath);
-			console.log(e);
+			console.error(cc.set('fg_red', 'error while building router'), this.modulePath);
+			console.error(e);
+			console.error(e.stack);
 		}
+	}
+
+	async getSocketIo() {
+		return this.socketIo;
+	}
+
+	async setSocketIo(io) {
+		this.socketIo = io;
 	}
 
 	getIndexFile() {
@@ -381,7 +390,7 @@ export default class App {
 		if (this.manualChunkType != type) {
 			console.warn(`addManualChunk of type ${type} will override previously set of type ${this.manualChunkType}`);
 			if (type === 'object') this.manualChunks = {}
-			else this.manualChunks === [];
+			else this.manualChunks = [];
 			this.manualChunkType = type;
 		}
 
@@ -764,6 +773,12 @@ export default class App {
 			input : {
 				input: input,
 				plugins: plugins,
+				onwarn(warning, warn) {
+					if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
+					  return
+					}
+					warn(warning)
+				},
 			},
 			output : {
 				output : {

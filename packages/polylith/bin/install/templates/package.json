@@ -3,13 +3,43 @@
   "version": "0.1.0",
   "description": "Initial setup for a polylith project",
   "dependencies": {
+    "@polylith/browser": "^0.1.0",
+    "@polylith/builder": "^0.2.26",
     "@polylith/config-store": "^0.1.0",
-    "@polylith/core": "^0.1.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "@polylith/builder": "^0.1.0",
-    "@polylith/server": "^0.1.0",
-    "polylith": "^0.1.0"
+    "@polylith/core": "^0.1.10",
+    "nodemon": "^3.0.1",
+    "polylith": "^0.1.79",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@polylith/server": "^0.1.25",
+    "jasmine": "^4.5.0",
+    "jasmine-core": "^4.5.0",
+    "karma": "^6.4.1",
+    "karma-chrome-launcher": "^3.1.1",
+    "karma-jasmine": "^5.1.0",
+    "karma-jasmine-html-reporter": "^2.0.0",
+    "karma-spec-reporter": "^0.0.36",
+    "puppeteer": "^19.4.1"
+  },
+  "nodemonConfig": {
+    "delay": 2500,
+    "watch": [
+      "server",
+      "config"
+    ],
+    "exec": "npm start"
+  },
+  "scripts": {
+    "test": "start polylith test -a -w && start karma start --browsers ChromeHeadless karma.conf.cjs",
+    "dev": "start polylith watch --all -v false&start npm run dev:serve",
+    "karma": "karma start --browsers ChromeHeadless karma.conf.cjs",
+    "dev:tests": "polylith test -a -w",
+    "dev:watch": "polylith watch --all -v false",
+    "dev:serve": "nodemon",
+    "build": "polylith build --all",
+    "start": "polylith serve --all"
   },
   "type": "module"
 }

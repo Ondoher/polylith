@@ -2,6 +2,7 @@ import express from "express";
 import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path/posix';
+import { Server } from "socket.io";
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import cookieSession from 'cookie-session';
@@ -27,6 +28,14 @@ export class PolylithServer {
 		}
 	}
 
+	async setupSocketIo(apps) {
+		if (!this.socketIo) return;
+
+		for (let app of apps) {
+			await app.setSocketIo(this.socketIo);
+		}
+	}
+
 	serve() {
 		var roots = !Array.isArray(this.staticRoot) ? [this.staticRoot] : this.staticRoot;
 		var staticOptions = {fallthrough: true}
@@ -46,6 +55,7 @@ export class PolylithServer {
 		} = this.options;
 
 		this.app = express();
+
 
 		if (useCompression) this.app.use(compression({threshold: 5000 }))
 		if (corsOptions) {
@@ -68,12 +78,20 @@ export class PolylithServer {
 			.use(express.raw())
 
 			this.serve();
-			await this.setAppRoutes(apps);
 
 		if (httpsOptions)
 			this.server = https.createServer(httpsOptions, this.app);
 		else
 			this.server = http.createServer(this.app);
+
+		if (this.options.socketIo) {
+			let options = this.options.socketIo === true ? {} : this.options.socketIo;
+			this.socketIo = new Server(this.server, options);
+			this.setupSocketIo(apps);
+		}
+
+		await this.setAppRoutes(apps);
+
 	}
 
 	start(port) {

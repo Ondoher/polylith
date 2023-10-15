@@ -7,7 +7,7 @@ export class EventBus {
 	}
 
 	listen (eventName, cb) {
-		var listenerId = uuid.v1();
+		var listenerId = uuid.v4();
 		var name = this.prefix + eventName;
 
 		this.listeners[name] = this.listeners[name] || [];

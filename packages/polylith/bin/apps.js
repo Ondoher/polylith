@@ -98,6 +98,7 @@ async function getApp(spec, config) {
 		} catch(e) {
 			console.warn(`error loading app ${spec.name}`);
 			console.warn(e.message);
+			if (e.stack) console.warn(e.stack);
 			return false;
 		}
 	}

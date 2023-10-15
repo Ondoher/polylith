@@ -1,8 +1,8 @@
 {
-  "devDependencies": {
-    "@ondohers/mpublish": "^0.1.1"
-  },
-  "scripts" : {
+  "scripts": {
     "publish": "mpublish"
+  },
+  "dependencies": {
+    "@ondohers/mpublish": "^0.1.8"
   }
 }

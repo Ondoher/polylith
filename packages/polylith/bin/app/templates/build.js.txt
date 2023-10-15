@@ -1,15 +1,15 @@
-import {App, utils} from '@polylith/builder';
-import path from "path/posix";
+import {App} from '@polylith/builder';
+import path from 'path/posix';
 
-var projectRoot = path.join(utils.fileToPath(import.meta.url), '../');
-class {App}App extends App {
-	constructor() {
-		super('{app}', {
+var projectRoot = path.join(path.dirname(import.meta.url), '../');
+export default class {App}App extends App {
+	constructor(config) {
+		super('{app}', config, {
 			root: projectRoot,
 			index: '{path}{src}/index.js',
 			dest: '{dest}'
 		});
-		this.setHtmlTemplate('{path}/{src}/index.html', '{dest}{path}/index.html');
+		this.setHtmlTemplate('{path}/{src}/templates/index.html', '{dest}{path}/index.html');
 		this.addResources('',  [
 			{
 				"dest": "images",
@@ -19,7 +19,7 @@ class {App}App extends App {
 			},
 		])
 
-		this.addMainCss([
+		this.addMainCss('', [
 			{
 				"dest": "styles",
 				"cwd": "styles",
@@ -29,5 +29,3 @@ class {App}App extends App {
 		]);
 	}
 }
-
-export const app = new {App}App();

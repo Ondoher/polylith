@@ -1,5 +1,6 @@
 import { ServiceOject } from "./ServiceObject.js";
 import { makeEventable} from "./Eventable.js";
+import Defer from "./Defer.js";
 
 /**
  * This calls is the implementation of the serices registry. There will be a
@@ -9,6 +10,7 @@ export class Registry {
 	/** Constructor for the registry */
 	constructor () {
 		this.services = {};
+		this.deferreds = {};
 
 		makeEventable(this);
 	}
@@ -131,26 +133,39 @@ export class Registry {
 	}
 
 	/**
-	 * Call this method to invoke a method on all the passed service.
+	 * Call this method to invoke an event on every service in the list
 	 *
-	 * @param {Array.<String>} serviceNames
-	 * @param {String} which the name of the method to call
-	 * @param {Function} if provided will call the function with the result of
-	 * 		the service call
-	 * @param  {...any} args the arguments to pass to the invoked method
+	 * @param {*} serviceNames the list of services to act on
+	 * @param {*} event the event to fire
+	 * @param {*} [preprocess] if provided, this method will be called on all
+	 * 	services before firing the events
+	 * @param {*} [processResult] if provided, this method will be called,
+	 * 	passing the result for every event call
 	 * @returns {Promise.<any>} an array of any promises that were returned from
 	 * 		the called methods.
 	 */
-	callAll(serviceNames, which, processResult, ...args) {
+	callAll(serviceNames, event, preprocess, processResult, ...args ) {
 		var promises = [];
 
+		// run the preprocess callback on each service
+		if (preprocess) {
+			serviceNames.forEach(function (name) {
+				var serviceObject = this.services[name];
+				preprocess(serviceObject);
+			}, this);
+		}
+
+		// invoke the event on all services
 		serviceNames.forEach(function (name) {
 			var serviceObject = this.services[name];
 			if (!serviceObject) return;
-			var result = serviceObject.invoke.apply(serviceObject, [which, ...args]);
 
+			var result = serviceObject.invoke.apply(serviceObject, [event, ...args]);
+
+			// now thta we have a result, let the post process have it
 			if (processResult) processResult(serviceObject, result)
 
+			// if the result is a promise, then we add ot the list to
 			if (result && result.then) {
 				promises.push(result);
 			}
@@ -160,20 +175,31 @@ export class Registry {
 	}
 
 	/**
-	 * Call this method to add the wait methods to each service object
+	 * Call this method handle the service start deferreds
 	 *
 	 * @param {ServiceOject} serviceObject the service object to add the method
 	 * 		to
 	 * @param {*} result the result of the start method
 	 */
-	addWaitMethods(serviceObject, result) {
-		var promise = result.then ? result : new Promise.resolve(true);
+	resolveDeferred(serviceObject, result) {
+		var promise = result?.then ? result : Promise.resolve(true);
 
-		serviceObject.waitStarted = function() {
-			return promise;
-		}
+		// wait for the promise to finish to resolve the deferred
+		promise.then(function(result) {
+			this.deferreds[serviceObject.name].resolve(result)
+		}.bind(this)).catch(function(error) {
+			this.deferreds[serviceObject.name].reject(result)
+		}.bind(this))
 	}
 
+	addWaitMethod(serviceObject) {
+		this.deferreds[serviceObject.name] = new Defer()
+
+		serviceObject.waitStarted = function() {
+			// wait on
+			return this.deferreds[serviceObject.name].promise;
+		}.bind(this)
+	}
 
 	/**
 	 * Call this method to verify that all services have their required services
@@ -214,7 +240,7 @@ export class Registry {
 	 * services. Then, after all returtned promises have settled, the ready
 	 * method will be invoked. The ready method is assumed to be synchronous
 	 *
-	 * @param {String} [prefix] if passed, only service that start with the
+	 * @param {String} [prefix] if passed, only sevice that start with the
 	 * 		given prefix will have the start process run.
 	 *
 	 * @returns a promise that will be resolved when the startup sequence is
@@ -225,14 +251,15 @@ export class Registry {
 
 		this.checkRequirements();
 
+
 		var services = names.filter(function(name) {
 			return name.indexOf(prefix) === 0;
 		}, this);
 
-		var promises = this.callAll(services, 'start', this.addWaitMethods.bind(this));
+		var promises = this.callAll(services, 'start', this.addWaitMethod.bind(this), this.resolveDeferred.bind(this));
 		return Promise.allSettled(promises)
 			.then(function () {
-				this.callAll(services, 'ready', false);
+				this.callAll(services, 'ready', null, null);
 				this.fire('ready', prefix);
 			}.bind(this));
 	}
