@@ -5,7 +5,7 @@ import { EventBus } from './EventBus.js';
  * Service implementations will extend this object by adding methods and events.
  * Service objects are eventable objects, and inherit from the EventBus object
  */
-export class ServiceOject extends EventBus {
+export class ServiceObject extends EventBus {
 	/**
 	 * Constructor for the service object
 	 * @param {String} name the name of the service being registered.

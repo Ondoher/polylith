@@ -1,4 +1,4 @@
-import { ServiceOject } from "./ServiceObject.js";
+import { ServiceObject } from "./ServiceObject.js";
 import { makeEventable} from "./Eventable.js";
 import Defer from "./Defer.js";
 
@@ -22,7 +22,7 @@ export class Registry {
 	 * @returns the newly created sercice object
 	 */
 	createServiceObject(name) {
-		var result = new ServiceOject(name);
+		var result = new ServiceObject(name);
 
 		return result;
 	}
@@ -32,7 +32,7 @@ export class Registry {
 	 * be subscribed to fromn the registry by the given name.
 	 *
 	 * @param {String} name the namke of the object being registered.
-	 * @param {ServiceOject} serviceObject the service object being registered.
+	 * @param {ServiceObject} serviceObject the service object being registered.
 	 */
 	register(name, serviceObject) {
 		this.services[name] = serviceObject;
@@ -52,7 +52,7 @@ export class Registry {
 	 * Call this method to get a reference to the service object.
 	 *
 	 * @param {String} name the registered name of the service object
-	 * @returns {ServiceOject} the registered service object, ot false if it was
+	 * @returns {ServiceObject} the registered service object, ot false if it was
 	 * 		not found.
 	 */
 	subscribe(name) {
@@ -72,7 +72,7 @@ export class Registry {
 	 * 		be bound to the passed implementation object.
 	 */
 	makeService(serviceName, obj, methodList) {
-		obj.serviceObject = new ServiceOject(serviceName);
+		obj.serviceObject = new ServiceObject(serviceName);
 
 		obj.serviceObject.implementOn(obj, 'fire');
 		obj.serviceObject.implementOn(obj, 'listen');
@@ -111,7 +111,7 @@ export class Registry {
 	extendService(serviceName, obj, methodList) {
 		var serviceObject = this.subscribe(serviceName);
 
-		obj.serviceObject = serviceObject || new ServiceOject(serviceName);
+		obj.serviceObject = serviceObject || new ServiceObject(serviceName);
 
 		obj.serviceObject.implementOn(obj, 'fire');
 		obj.serviceObject.implementOn(obj, 'listen');
@@ -177,7 +177,7 @@ export class Registry {
 	/**
 	 * Call this method handle the service start deferreds
 	 *
-	 * @param {ServiceOject} serviceObject the service object to add the method
+	 * @param {ServiceObject} serviceObject the service object to add the method
 	 * 		to
 	 * @param {*} result the result of the start method
 	 */

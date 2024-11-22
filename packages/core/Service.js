@@ -1,9 +1,9 @@
-import { ServiceOject } from "./ServiceObject.js";
+import { ServiceObject } from "./ServiceObject.js";
 import { registry } from "./Registry.js";
 
 export class Service {
 	constructor (name, overrideRegistry) {
-		this.serviceObject = new ServiceOject(name);
+		this.serviceObject = new ServiceObject(name);
 
 		this.registry = overrideRegistry || registry;
 
